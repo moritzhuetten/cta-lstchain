@@ -172,6 +172,26 @@ def get_dl1(
 
     return dl1_container
 
+
+def get_dl1_lh_fit(
+    calibrated_event,
+    telescope_id,
+    dl1_container=None,
+    custom_config={},
+    use_main_island=True,):
+
+    dl1_init = get_dl1(
+    calibrated_event=calibrated_event,
+    telescope_id=telescope_id,
+    dl1_container=None,
+    custom_config=custom_config,
+    use_main_island=use_main_island)
+
+    dl1_fit = DL1ParametersContainer()
+
+    return dl1_fit
+
+
 def r0_to_dl1(
     input_filename=get_dataset_path('gamma_test_large.simtel.gz'),
     output_filename=None,
