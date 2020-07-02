@@ -158,5 +158,13 @@
        "window_start": 12,
        "window_width":12
     }
+  },
+  "lh_fit_config": {
+    "n_call": null,
+    "sigma_space": 3,
+    "sigma_time": 4,
+    "time_before_shower": 20,
+    "time_after_shower": 40,
+    "n_peaks": 500
   }
 }
