@@ -1,6 +1,13 @@
 import numpy as np
 
 
+def log_gaussian(x, mean, sigma):
+
+    log_pdf = -(x - mean) ** 2 / (2 * sigma ** 2)
+    log_pdf = log_pdf - np.log((np.sqrt(2 * np.pi) * sigma))
+
+    return log_pdf
+
 def log_gaussian2d(size, x, y, x_cm, y_cm, width, length, psi):
 
     scale_w = 1. / (2. * width ** 2)

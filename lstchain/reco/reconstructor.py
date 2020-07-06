@@ -9,7 +9,7 @@ from copy import copy
 
 from ctapipe.reco.reco_algorithms import Reconstructor
 from lstchain.io.lstcontainers import DL1ParametersContainer
-from lstchain.utils
+from lstchain.image.pdf import log_gaussian2d
 
 
 class DL0Fitter(ABC):
