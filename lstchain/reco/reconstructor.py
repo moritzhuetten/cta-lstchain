@@ -10,17 +10,55 @@ from copy import copy
 from ctapipe.reco.reco_algorithms import Reconstructor
 
 
-class LHFitter(ABC):
+class DL0Fitter(ABC):
 
-    def __init__(self, data, start_parameters=None, bound_parameters=None):
+    def __init__(self, sigma_s, geometry, dt, n_samples,
+                 template, gain=1, baseline=0, crosstalk=0,
+                 sigma_space=4, sigma_time=3,
+                 sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
+                 time_before_shower=10, time_after_shower=50,
+                 start_parameters=None, bound_parameters=None):
 
-        self.data = data
+        self.gain = gain
+        self.baseline = baseline
+        self.sigma_s = sigma_s
+        self.crosstalk = crosstalk
+
+        self.geometry = geometry
+        self.dt = dt
+        self.template = template
+
+        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
+        self.times = np.arange(0, self.n_samples) * self.dt
+
+        self.pix_x = geometry.pix_x.value
+        self.pix_y = geometry.pix_y.value
+        self.pix_area = geometry.pix_area
+
+        self.labels = {'charge': 'Charge [p.e.]',
+                       't_cm': '$t_{CM}$ [ns]',
+                       'x_cm': '$x_{CM}$ [mm]',
+                       'y_cm': '$y_{CM}$ [mm]',
+                       'width': '$\sigma_w$ [mm]',
+                       'length': '$\sigma_l$ [mm]',
+                       'psi': '$\psi$ [rad]',
+                       'v': '$v$ [mm/ns]'
+                       }
+
+        self.template = template
+
+        self.sigma_amplitude = sigma_amplitude
+        self.sigma_space = sigma_space
+        self.sigma_time = sigma_time
+        self.picture_threshold = picture_threshold
+        self.boundary_threshold = boundary_threshold
+        self.time_before_shower = time_before_shower
+        self.time_after_shower = time_after_shower
+
         self.end_parameters = None
         self.start_parameters = start_parameters
         self.bound_parameters = bound_parameters
         self.names_parameters = list(inspect.signature(self.log_pdf).parameters)
-        # self.start_parameters = self.initialize_fit()
-        # self.bound_parameters = self.compute_bounds()
         self.error_parameters = None
         self.correlation_matrix = None
 
@@ -33,6 +71,21 @@ class LHFitter(ABC):
         str += 'Log-Likelihood :\t{}'.format(self.log_likelihood(**self.end_parameters))
 
         return str
+
+    def fill_event(self, data, error=None):
+        """
+
+        Parameters
+        ----------
+        data: DL0 waveforms (n_pixels, n_samples)
+        error Associated errors to the DL0 waveforms (n_pixels, n_samples)
+        Returns
+        -------
+
+        """
+
+        self.data = data
+        self.error = np.ones(data.shape) if error is None else None
 
     def fit(self, verbose=True, minuit=False, **kwargs):
 
@@ -298,3 +351,4 @@ class LHFitter(ABC):
                                           size=size,
                                           x_label=x_label,
                                           y_label=y_label)
+
