@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from copy import copy
 
 from ctapipe.reco.reco_algorithms import Reconstructor
+from lstchain.io.lstcontainers import DL1ParametersContainer
 
 
 class DL0Fitter(ABC):
@@ -55,9 +56,9 @@ class DL0Fitter(ABC):
         self.time_before_shower = time_before_shower
         self.time_after_shower = time_after_shower
 
-        self.end_parameters = None
         self.start_parameters = start_parameters
         self.bound_parameters = bound_parameters
+        self.end_parameters = None
         self.names_parameters = list(inspect.signature(self.log_pdf).parameters)
         self.error_parameters = None
         self.correlation_matrix = None
@@ -351,4 +352,104 @@ class DL0Fitter(ABC):
                                           size=size,
                                           x_label=x_label,
                                           y_label=y_label)
+
+
+class TimeWaveformFitter(DL0Fitter, Reconstructor):
+
+    def __init__(self, *args, n_peaks=100, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._initialize_pdf(n_peaks=n_peaks)
+
+    def _initialize_pdf(self, n_peaks):
+        photoelectron_peak = np.arange(n_peaks, dtype=np.int)
+        self.photo_peaks = photoelectron_peak
+        photoelectron_peak = photoelectron_peak[..., None]
+        sigma_n = self.error[:, 0] ** 2 + photoelectron_peak * self.sigma_s ** 2
+        sigma_n = np.sqrt(sigma_n)
+        self.sigma_n = sigma_n
+
+        self.photo_peaks
+        mask = (self.photo_peaks == 0)
+        self.photo_peaks[mask] = 1
+        log_k = np.log(self.photo_peaks)
+        log_k = np.cumsum(log_k)
+        self.photo_peaks[mask] = 0
+        self.log_k = log_k
+        self.crosstalk_factor = photoelectron_peak * self.crosstalk
+        self.crosstalk_factor = self.crosstalk_factor
+
+    def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
+                length, psi, v):
+        dx = (self.pix_x - x_cm)
+        dy = (self.pix_y - y_cm)
+        long = dx * np.cos(psi) + dy * np.sin(psi)
+        p = [v, t_cm]
+        t = np.polyval(p, long)
+        t = self.times[..., np.newaxis] - t
+        t = t.T
+
+        ## mu = mu * self.pix_area
+
+        # mu = mu[..., None] * self.template(t)
+        # mask = (mu > 0)
+        log_mu = log_gaussian2d(size=charge * self.pix_area,
+                                x=self.pix_x,
+                                y=self.pix_y,
+                                x_cm=x_cm,
+                                y_cm=y_cm,
+                                width=width,
+                                length=length,
+                                psi=psi)
+        mu = np.exp(log_mu)
+
+        # log_mu[~mask] = -np.inf
+        log_k = self.log_k
+
+        x = mu + self.crosstalk_factor
+        # x = np.rollaxis(x, 0, 3)
+        log_x = np.log(x)
+        # mask = x > 0
+        # log_x[~mask] = -np.inf
+
+        log_x = ((self.photo_peaks - 1) * log_x.T).T
+        log_poisson = log_mu - log_k[..., None] - x + log_x
+        # print(log_poisson)
+
+        mean = self.photo_peaks * ((self.gain[..., None] * self.template(t)))[
+            ..., None]
+        x = self.data - self.baseline[..., None]
+        sigma_n = np.expand_dims(self.sigma_n.T, axis=1)
+
+        log_gauss = log_gaussian(x[..., None], mean, sigma_n)
+
+        log_poisson = np.expand_dims(log_poisson.T, axis=1)
+        log_pdf = log_poisson + log_gauss
+        pdf = np.sum(np.exp(log_pdf), axis=-1)
+
+        mask = (pdf <= 0)
+        pdf = pdf[~mask]
+        n_points = pdf.size
+        log_pdf = np.log(pdf).sum() / n_points
+
+        return log_pdf
+
+    def predict(self, container=DL1ParametersContainer(), **kwargs):
+
+        self.fit(**kwargs)
+
+        container.x = self.end_parameters['x_cm']
+        container.y = self.end_parameters['y_cm']
+        container.r = np.sqrt(container.x**2 + container.y**2)
+        container.phi = np.arctan2(container.y, container.x)
+        container.psi = self.end_parameters['psi'] # TODO turn psi angle when length < width
+        container.length = max(self.end_parameters['length'], self.end_parameters['width'])
+        container.width = min(self.end_parameters['length'], self.end_parameters['width'])
+
+        container.time_gradient = self.end_parameters['v']
+        container.intercept = self.end_parameters['t_cm']
+
+        container.wl = container.width / container.length
+
+        return container
 
