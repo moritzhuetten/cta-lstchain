@@ -176,6 +176,7 @@ def get_dl1(
 def get_dl1_lh_fit(
     calibrated_event,
     telescope_id,
+    normalized_pulse_template,
     dl1_container=None,
     custom_config={},
     use_main_island=True,):
@@ -187,7 +188,14 @@ def get_dl1_lh_fit(
     custom_config=custom_config,
     use_main_island=use_main_island)
 
-    dl1_fit = DL1ParametersContainer()
+    dl1_fit = DL1ParametersContainer() if dl1_container is None else dl1_container
+    lh_fit_config = custom_config['lh_fit_config']
+
+    tel = calibrated_event.inst.subarray.tels[telescope_id]
+    camera = tel.camera
+    waveform = calibrated_event.dl0.tel[telescope_id].waveform
+
+    print(waveform)
 
     return dl1_fit
 
@@ -424,6 +432,12 @@ def r0_to_dl1(
                         dl1_container=dl1_container,
                         custom_config=config,
                     )
+
+                    dl1_filled = get_dl1_lh_fit(event, telescope_id,
+                                                normalized_pulse_template=None,
+                                                dl1_container=dl1_container,
+                                                custom_config=config,
+                                                use_main_island=True)
 
                 except HillasParameterizationError:
                     logging.exception(
