@@ -3,9 +3,11 @@ import inspect
 
 from iminuit import Minuit
 from scipy.optimize import minimize
+from scipy.interpolate import interp1d
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import copy
+import astropy.units as u
 
 from ctapipe.reco.reco_algorithms import Reconstructor
 from lstchain.io.lstcontainers import DL1ParametersContainer
@@ -35,7 +37,9 @@ class DL0Fitter(ABC):
 
         self.pix_x = geometry.pix_x.value
         self.pix_y = geometry.pix_y.value
-        self.pix_area = geometry.pix_area
+        self.pix_area = geometry.pix_area.to(u.m**2).value
+
+        print(self.pix_x, self.pix_y, self.pix_area)
 
         self.labels = {'charge': 'Charge [p.e.]',
                        't_cm': '$t_{CM}$ [ns]',
@@ -87,9 +91,9 @@ class DL0Fitter(ABC):
         """
 
         self.data = data
-        self.error = np.ones(data.shape) if error is None else None
+        self.error = np.ones(data.shape) if error is None else error
 
-    def fit(self, verbose=True, minuit=False, **kwargs):
+    def fit(self, verbose=True, minuit=True, **kwargs):
 
         if minuit:
 
@@ -97,9 +101,11 @@ class DL0Fitter(ABC):
             bounds_params = {}
             start_params = self.start_parameters
 
-            for key, val in self.bound_parameters.items():
+            if self.bound_parameters is not None:
 
-                bounds_params['limit_'+ key] = val
+                for key, val in self.bound_parameters.items():
+
+                    bounds_params['limit_'+ key] = val
 
             for key in self.names_parameters:
 
@@ -114,6 +120,7 @@ class DL0Fitter(ABC):
             # print(fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
             f = lambda *args: -self.log_likelihood(*args)
+            print(options)
             print_level = 2 if verbose else 0
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
             m.migrad()
@@ -357,9 +364,9 @@ class DL0Fitter(ABC):
 
 class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
-    def __init__(self, *args, n_peaks=100, **kwargs):
+    def __init__(self, waveform, error, *args, n_peaks=100, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.fill_event(waveform, error)
         self._initialize_pdf(n_peaks=n_peaks)
 
     def _initialize_pdf(self, n_peaks):
@@ -454,3 +461,148 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return container
 
+    def compute_bounds(self):
+        pass
+    def plot(self):
+        pass
+
+
+
+class NormalizedPulseTemplate:
+    def __init__(self, amplitude, time, amplitude_std=None):
+        self.time = np.array(time)
+        self.amplitude = np.array(amplitude)
+        if amplitude_std is not None:
+            assert np.array(amplitude_std).shape == self.amplitude.shape
+            self.amplitude_std = np.array(amplitude_std)
+        else:
+            self.amplitude_std = self.amplitude * 0
+        self._template = self._interpolate()
+        self._template_std = self._interpolate_std()
+
+    def __call__(self, time, amplitude=1, t_0=0, baseline=0):
+        y = amplitude * self._template(time - t_0) + baseline
+        return np.array(y)
+
+    def std(self, time, amplitude=1, t_0=0, baseline=0):
+        y = amplitude * self._template_std(time - t_0) + baseline
+        return np.array(y)
+
+    def __getitem__(self, item):
+        return NormalizedPulseTemplate(amplitude=self.amplitude[item],
+                                       time=self.time)
+
+    def save(self, filename):
+        data = np.vstack([self.time, self.amplitude, self.amplitude_std])
+        np.savetxt(filename, data.T)
+
+    @classmethod
+    def load(cls, filename):
+        data = np.loadtxt(filename).T
+        assert len(data) in [2, 3]
+        if len(data) == 2:  # no std in file
+            t, x = data
+            return cls(amplitude=x, time=t)
+        elif len(data) == 3:
+            t, x, dx = data
+            return cls(amplitude=x, time=t, amplitude_std=dx)
+
+    def _interpolate(self):
+        if abs(np.min(self.amplitude)) <= abs(np.max(self.amplitude)):
+
+            normalization = np.max(self.amplitude)
+
+        else:
+
+            normalization = np.min(self.amplitude)
+
+        self.amplitude = self.amplitude / normalization
+        self.amplitude_std = self.amplitude_std / normalization
+
+        return interp1d(self.time, self.amplitude, kind='cubic',
+                        bounds_error=False, fill_value=0., assume_sorted=True)
+
+    def _interpolate_std(self):
+        return interp1d(self.time, self.amplitude_std, kind='cubic',
+                        bounds_error=False, fill_value=np.inf,
+                        assume_sorted=True)
+
+    def integral(self, order=1):
+        return np.trapz(y=self.amplitude**order, x=self.time)
+
+    def compute_charge_amplitude_ratio(self, integral_width, dt_sampling):
+
+        dt = self.time[1] - self.time[0]
+
+        if not dt % dt_sampling:
+            raise ValueError('Cannot use sampling rate {} for {}'.format(
+                1 / dt_sampling, dt))
+        step = int(dt_sampling / dt)
+        y = self.amplitude[::step]
+        window = np.ones(integral_width)
+        charge_to_amplitude_factor = np.convolve(y, window)
+        charge_to_amplitude_factor = np.max(charge_to_amplitude_factor)
+
+        return 1 / charge_to_amplitude_factor
+
+    def pdf(self, t, t_0=0.):
+
+        y = self(t, t_0=t_0)
+        # times = np.ones(y.shape) * t
+        # integral = np.trapz(y=y, x=times, axis=0)
+        y = y / self.integral()
+
+        return y
+
+    def plot(self, axes=None, label='Template data-points', **kwargs):
+        if axes is None:
+            fig = plt.figure()
+            axes = fig.add_subplot(111)
+        t = np.linspace(self.time.min(), self.time.max(),
+                        num=len(self.time) * 100)
+        axes.errorbar(self.time, self.amplitude, self.amplitude_std/2,
+                      label=label, **kwargs)
+        axes.set_xlabel('time [ns]')
+        axes.set_ylabel('normalised amplitude [a.u.]')
+        axes.legend(loc='best')
+        return axes
+
+    def plot_interpolation(self, axes=None, sigma=-1., color='k',
+                           label='Template interpolation', cumulative=False,
+                           **kwargs):
+        if axes is None:
+            fig = plt.figure()
+            axes = fig.add_subplot(111)
+        t = np.linspace(self.time.min(), self.time.max(),
+                        num=len(self.time) * 100)
+        mean_y = self.__call__(t)
+        std_y = self.std(t)
+        if sigma > 0:
+            axes.fill_between(
+                t,
+                mean_y + sigma * std_y,
+                mean_y - sigma * std_y,
+                alpha=0.3, color=color, label=label
+            )
+            axes.plot(t, mean_y, '-', color=color, **kwargs)
+        else:
+            axes.plot(t, mean_y, '-', label=label, color=color, **kwargs)
+        if cumulative:
+            integ = np.cumsum(mean_y)
+            axes.plot(t, 1 - integ/integ[-1], '--', color=color,
+                      label=label + ' integrated', **kwargs)
+        axes.legend(loc='best')
+        axes.set_xlabel('time [ns]')
+        axes.set_ylabel('normalised amplitude [a.u.]')
+        return axes
+
+    def compute_time_of_max(self):
+
+        dt = np.diff(self.time)[0]
+        index_max = np.argmax(self.amplitude)
+        t = np.linspace(self.time[index_max] - dt,
+                        self.time[index_max] + dt,
+                        num=100)
+        t_max = self(t).argmax()
+        t_max = t[t_max]
+        return t_max
