@@ -12,16 +12,17 @@ import astropy.units as u
 from ctapipe.reco.reco_algorithms import Reconstructor
 from lstchain.io.lstcontainers import DL1ParametersContainer
 from lstchain.image.pdf import log_gaussian, log_gaussian2d
+from lstchain.visualization.camera import display_array_camera
 
 
 class DL0Fitter(ABC):
 
-    def __init__(self, sigma_s, geometry, dt, n_samples,
+    def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
                  template, gain=1, baseline=0, crosstalk=0,
                  sigma_space=4, sigma_time=3,
                  sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
                  time_before_shower=10, time_after_shower=50,
-                 start_parameters=None, bound_parameters=None):
+                  bound_parameters=None):
 
         self.gain = gain
         self.baseline = baseline
@@ -39,16 +40,14 @@ class DL0Fitter(ABC):
         self.pix_y = geometry.pix_y.value
         self.pix_area = geometry.pix_area.to(u.m**2).value
 
-        print(self.pix_x, self.pix_y, self.pix_area)
-
         self.labels = {'charge': 'Charge [p.e.]',
                        't_cm': '$t_{CM}$ [ns]',
-                       'x_cm': '$x_{CM}$ [mm]',
-                       'y_cm': '$y_{CM}$ [mm]',
-                       'width': '$\sigma_w$ [mm]',
-                       'length': '$\sigma_l$ [mm]',
+                       'x_cm': '$x_{CM}$ [m]',
+                       'y_cm': '$y_{CM}$ [m]',
+                       'width': '$\sigma_w$ [m]',
+                       'length': '$\sigma_l$ [m]',
                        'psi': '$\psi$ [rad]',
-                       'v': '$v$ [mm/ns]'
+                       'v': '$v$ [m/ns]'
                        }
 
         self.template = template
@@ -67,6 +66,45 @@ class DL0Fitter(ABC):
         self.names_parameters = list(inspect.signature(self.log_pdf).parameters)
         self.error_parameters = None
         self.correlation_matrix = None
+
+        self.mask_pixel, self.mask_time = self.clean_data()
+        self.gain = gain[self.mask_pixel]
+        self.baseline = baseline[self.mask_pixel]
+        self.sigma_s = sigma_s[self.mask_pixel]
+        self.crosstalk = crosstalk[self.mask_pixel]
+
+        self.geometry = geometry
+        self.dt = dt
+        self.template = template
+
+        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
+        self.times = (np.arange(0, self.n_samples) * self.dt)[self.mask_time]
+
+        self.pix_x = geometry.pix_x.value[self.mask_pixel]
+        self.pix_y = geometry.pix_y.value[self.mask_pixel]
+        self.pix_area = geometry.pix_area.to(u.m**2).value[self.mask_pixel]
+
+        self.data = waveform
+        self.error = error
+
+        pixels = np.arange(self.n_pixels)[~self.mask_pixel]
+        t = np.arange(self.n_samples)[~self.mask_time]
+
+        if error is None:
+
+            std = np.std(self.data[~self.mask_pixel])
+            self.error = np.ones(self.data.shape) * std
+
+        self.data = np.delete(self.data, pixels, axis=0)
+        self.data = np.delete(self.data, t, axis=1)
+        self.error = np.delete(self.error, pixels, axis=0)
+        self.error = np.delete(self.error, t, axis=1)
+
+    @abstractmethod
+    def clean_data(self):
+
+        pass
+
 
     def __str__(self):
 
@@ -89,10 +127,6 @@ class DL0Fitter(ABC):
         -------
 
         """
-
-        self.data = data
-        self.error = np.ones(data.shape) if error is None else error
-
     def fit(self, verbose=True, minuit=True, **kwargs):
 
         if minuit:
@@ -120,7 +154,6 @@ class DL0Fitter(ABC):
             # print(fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
             f = lambda *args: -self.log_likelihood(*args)
-            print(options)
             print_level = 2 if verbose else 0
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
             m.migrad()
@@ -241,9 +274,9 @@ class DL0Fitter(ABC):
                          color='b', label='Starting value {:.2f}'.format(
                     self.start_parameters[key]
                 ))
-            axes.axvspan(self.bound_parameters[key][0],
-                         self.bound_parameters[key][1], label='bounds',
-                         alpha=0.5, facecolor='k')
+            # axes.axvspan(self.bound_parameters[key][0],
+            #              self.bound_parameters[key][1], label='bounds',
+            #             alpha=0.5, facecolor='k')
             axes.set_ylabel('-$\ln \mathcal{L}$')
             axes.set_xlabel(x_label)
 
@@ -345,7 +378,7 @@ class DL0Fitter(ABC):
         return axes
 
     def plot_likelihood(self, parameter_1, parameter_2=None,
-                        axes=None, size=1000,
+                        axes=None, size=100,
                           x_label=None, y_label=None):
 
         if parameter_2 is None:
@@ -364,10 +397,38 @@ class DL0Fitter(ABC):
 
 class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
-    def __init__(self, waveform, error, *args, n_peaks=100, **kwargs):
+    def __init__(self, *args, image, n_peaks=100, **kwargs):
+
+        self.image = image
         super().__init__(*args, **kwargs)
-        self.fill_event(waveform, error)
         self._initialize_pdf(n_peaks=n_peaks)
+
+    def clean_data(self):
+
+        x_cm = self.start_parameters['x_cm']
+        y_cm = self.start_parameters['y_cm']
+        width = self.start_parameters['width']
+        length = self.start_parameters['length']
+        psi = self.start_parameters['psi']
+
+        dx = self.pix_x - x_cm
+        dy = self.pix_y - y_cm
+
+        lon = dx * np.cos(psi) + dy * np.sin(psi)
+        lat = dx * np.sin(psi) - dy * np.cos(psi)
+
+        mask_pixel = ((lon / length) ** 2 + (
+                    lat / width) ** 2) < self.sigma_space ** 2
+
+        v = self.start_parameters['v']
+        t_start = self.start_parameters['t_cm'] - (
+                    np.abs(v) * length / 2 * self.sigma_time) - 20
+        t_end = self.start_parameters['t_cm'] + (
+                    np.abs(v) * length / 2 * self.sigma_time) + 20
+
+        mask_time = (self.times < t_end) * (self.times > t_start)
+
+        return mask_pixel, mask_time
 
     def _initialize_pdf(self, n_peaks):
         photoelectron_peak = np.arange(n_peaks, dtype=np.int)
@@ -446,13 +507,13 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         self.fit(**kwargs)
 
-        container.x = self.end_parameters['x_cm']
-        container.y = self.end_parameters['y_cm']
+        container.x = self.end_parameters['x_cm'] * u.m
+        container.y = self.end_parameters['y_cm'] * u.m
         container.r = np.sqrt(container.x**2 + container.y**2)
         container.phi = np.arctan2(container.y, container.x)
-        container.psi = self.end_parameters['psi'] # TODO turn psi angle when length < width
-        container.length = max(self.end_parameters['length'], self.end_parameters['width'])
-        container.width = min(self.end_parameters['length'], self.end_parameters['width'])
+        container.psi = self.end_parameters['psi'] * u.rad # TODO turn psi angle when length < width
+        container.length = max(self.end_parameters['length'], self.end_parameters['width']) * u.m
+        container.width = min(self.end_parameters['length'], self.end_parameters['width']) * u.m
 
         container.time_gradient = self.end_parameters['v']
         container.intercept = self.end_parameters['t_cm']
@@ -463,12 +524,82 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
     def compute_bounds(self):
         pass
-    def plot(self):
-        pass
+
+    def plot(self, n_sigma=3, init=False):
+
+        charge = self.image
+        cam_display = display_array_camera(charge, geom=self.geometry,)
+
+        if init:
+            params = self.start_parameters
+        else:
+            params = self.end_parameters
+
+        length = n_sigma * params['length']
+        psi = params['psi']
+        dx = length * np.cos(psi)
+        dy = length * np.sin(psi)
+        """
+        direction_arrow = Arrow(x=params['x_cm'],
+                                y=params['y_cm'],
+                                dx=dx, dy=dy, width=10, color='k',
+                                label='EAS direction')
+
+        cam_display.axes.add_patch(direction_arrow)
+        """
+
+        cam_display.add_ellipse(centroid=(params['x_cm'],
+                                        params['y_cm']),
+                                width=n_sigma * params['width'],
+                                length=length,
+                                angle=psi,
+                                linewidth=6, color='r', linestyle='--',
+                                label='{} $\sigma$ contour'.format(n_sigma))
+        cam_display.axes.legend(loc='best')
+
+        return cam_display
+
+    def plot_waveforms(self, axes=None):
+
+        image = self.image[self.mask_pixel]
+        n_pixels = min(15, len(image))
+        pixels = np.argsort(image)[-n_pixels:]
+        dx = (self.pix_x[pixels] - self.end_parameters['x_cm'])
+        dy = (self.pix_y[pixels] - self.end_parameters['y_cm'])
+        long_pix = dx * np.cos(self.end_parameters['psi']) + dy * np.sin(
+            self.end_parameters['psi'])
+        fitted_times = np.polyval(
+            [self.end_parameters['v'], self.end_parameters['t_cm']], long_pix)
+        # fitted_times = fitted_times[pixels]
+        times_index = np.argsort(fitted_times)
+
+        # waveforms = self.data[times_index]
+        waveforms = self.data[pixels]
+        waveforms = waveforms[times_index]
+        long_pix = long_pix[times_index]
+        fitted_times = fitted_times[times_index]
+
+        X, Y = np.meshgrid(self.times, long_pix)
+
+        if axes is None:
+            fig = plt.figure()
+            axes = fig.add_subplot(111)
+        M = axes.pcolormesh(X, Y, waveforms)
+        axes.set_xlabel('time [ns]')
+        axes.set_ylabel('Longitude [m]')
+        label = self.labels['t_cm'] + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm'])
+        label += '\n' + self.labels['v'] + ' : {:.2f} [m/ns]'.format(self.end_parameters['v'])
+        axes.plot(fitted_times, long_pix, color='w',
+                 label=label)
+        axes.legend(loc='best')
+        axes.get_figure().colorbar(label='[LSB]', ax=axes, mappable=M)
+
+        return axes
 
 
 
 class NormalizedPulseTemplate:
+
     def __init__(self, amplitude, time, amplitude_std=None):
         self.time = np.array(time)
         self.amplitude = np.array(amplitude)
@@ -545,23 +676,14 @@ class NormalizedPulseTemplate:
 
         return 1 / charge_to_amplitude_factor
 
-    def pdf(self, t, t_0=0.):
-
-        y = self(t, t_0=t_0)
-        # times = np.ones(y.shape) * t
-        # integral = np.trapz(y=y, x=times, axis=0)
-        y = y / self.integral()
-
-        return y
-
     def plot(self, axes=None, label='Template data-points', **kwargs):
         if axes is None:
             fig = plt.figure()
             axes = fig.add_subplot(111)
         t = np.linspace(self.time.min(), self.time.max(),
                         num=len(self.time) * 100)
-        axes.errorbar(self.time, self.amplitude, self.amplitude_std/2,
-                      label=label, **kwargs)
+        axes.plot(self.time, self.amplitude,
+                          label=label, **kwargs)
         axes.set_xlabel('time [ns]')
         axes.set_ylabel('normalised amplitude [a.u.]')
         axes.legend(loc='best')
