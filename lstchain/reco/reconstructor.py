@@ -127,7 +127,7 @@ class DL0Fitter(ABC):
         -------
 
         """
-    def fit(self, verbose=True, minuit=True, **kwargs):
+    def fit(self, verbose=True, minuit=True, ncall=None, **kwargs):
 
         if minuit:
 
@@ -156,11 +156,11 @@ class DL0Fitter(ABC):
             f = lambda *args: -self.log_likelihood(*args)
             print_level = 2 if verbose else 0
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
-            m.migrad()
+            m.migrad(ncall=ncall)
             self.end_parameters = dict(m.values)
             options = {**self.end_parameters, **fixed_params}
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
-            m.migrad()
+            m.migrad(ncall=ncall)
             try:
                 self.error_parameters = dict(m.errors)
 

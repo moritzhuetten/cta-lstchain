@@ -45,6 +45,16 @@ def display_dl1_event(event, camera_geometry, tel_id=1, axes=None, **kwargs):
     return axes
 
 
+def display_array_camera(image, geom, axes=None, **kwargs):
+
+    if axes is None:
+        fig, axes = plt.subplots(figsize=(10, 8))
+
+    d1 = CameraDisplay(geom, image, ax=axes, **kwargs)
+    d1.add_colorbar(ax=axes)
+    return d1
+
+
 def overlay_source(display, source_pos_x, source_pos_y, **kwargs):
     """
     Display the source (event) position in the camera

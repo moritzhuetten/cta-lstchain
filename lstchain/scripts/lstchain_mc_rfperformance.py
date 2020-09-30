@@ -14,15 +14,19 @@ $>python lstchain_mc_rfperformance.py
 
 """
 
+import numpy as np
+import pandas as pd
+from os.path import join
 import argparse
 import logging
 import sys
 
 import matplotlib.pyplot as plt
-import pandas as pd
 from ctapipe.instrument import SubarrayDescription
 from lstchain.io import standard_config, replace_config, read_configuration_file
 from lstchain.io.io import dl1_params_lstcam_key
+import joblib
+from distutils.util import strtobool
 from lstchain.reco import dl1_to_dl2
 from lstchain.reco.utils import filter_events
 from lstchain.visualization import plot_dl2
@@ -90,10 +94,7 @@ def main():
 
     config = replace_config(standard_config, custom_config)
 
-    subarray_info = SubarrayDescription.from_hdf(args.gammatest)
-    tel_id = config["allowed_tels"][0] if "allowed_tels" in config else 1
-    focal_length = subarray_info.tel[tel_id].optics.equivalent_focal_length
-
+    """
     reg_energy, reg_disp_vector, cls_gh = dl1_to_dl2.build_models(
         args.gammafile,
         args.protonfile,
@@ -101,6 +102,16 @@ def main():
         path_models=args.path_models,
         custom_config=config,
     )
+    """
+    # LOAD models
+
+    file_reg_energy = join(args.path_models, "reg_energy.sav")
+    file_reg_disp_vector = join(args.path_models, "reg_disp_vector.sav")
+    file_cls_gh = join(args.path_models, "cls_gh.sav")
+    reg_energy = joblib.load(file_reg_energy)
+    reg_disp_vector = joblib.load(file_reg_disp_vector)
+    cls_gh = joblib.load(file_cls_gh)
+
 
     gammas = filter_events(pd.read_hdf(args.gammatest, key=dl1_params_lstcam_key),
                            config["events_filters"],
@@ -123,35 +134,42 @@ def main():
         sys.exit()
 
     plot_dl2.plot_features(dl2)
+    plt.gcf().savefig(join(args.path_models, 'features.pdf'))
     if not args.batch:
         plt.show()
 
-    plot_dl2.energy_results(selected_gammas)
+    plot_dl2.energy_results(selected_gammas, plot_outfile=join(args.path_models, 'energy.pdf'))
     if not args.batch:
         plt.show()
 
-    plot_dl2.direction_results(selected_gammas)
+    plot_dl2.direction_results(selected_gammas, plot_outfile=join(args.path_models, 'direction.pdf'))
     if not args.batch:
         plt.show()
 
-    plot_dl2.plot_disp_vector(selected_gammas)
+    fig, axes = plot_dl2.plot_disp_vector(selected_gammas)
+    fig.savefig(join(args.path_models, 'disp.pdf'))
     if not args.batch:
         plt.show()
 
     plot_dl2.plot_pos(dl2)
+    plt.gcf().savefig(join(args.path_models, 'position.pdf'))
     if not args.batch:
         plt.show()
 
-    plot_dl2.plot_roc_gamma(dl2)
+    axes = plot_dl2.plot_roc_gamma(dl2)
+    axes.get_figure().savefig(join(args.path_models, 'roc.pdf'))
     if not args.batch:
         plt.show()
 
-    plot_dl2.plot_models_features_importances(args.path_models, args.config_file)
+    axes = plot_dl2.plot_models_features_importances(args.path_models, args.config_file)
+    axes[0].get_figure().savefig(join(args.path_models, 'feature_importance.pdf'))
     if not args.batch:
         plt.show()
 
+    fig = plt.figure()
     plt.hist(dl2[dl2['mc_type'] == 101]['gammaness'], bins=100)
     plt.hist(dl2[dl2['mc_type'] == 0]['gammaness'], bins=100)
+    fig.savefig(join(args.path_models, 'gammaness.pdf'))
     if not args.batch:
         plt.show()
 
