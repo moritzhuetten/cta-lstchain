@@ -8,13 +8,14 @@
 
 source ~/.bashrc
 conda activate lst-dev
-VERSION='v2'
+VERSION='v3'
 
 # LOG_FILE=$HOME'/logs/'$SLURM_JOB_NAME'-'$SLURM_JOB_ID'_'$SLURM_ARRAY_TASK_ID'_tee.out'
 
 OUTPUT_DIR='/fefs/aswg/workspace/'$USER'/DL1/'$VERSION'/'
 mkdir -p $OUTPUT_DIR
 CONFIG_FILE=$HOME'/ctasoft/lstchain/lstchain/data/lstchain_lhfit_config.json'
+cp $CONFIG_FILE $OUTPUT_DIR$(basename $CONFIG_FILE)
 
 INPUT_PATH='/fefs/aswg/data/mc/DL0/20190415/'
 pointing='south_pointing/'
@@ -24,9 +25,12 @@ PROTON_FILES=$INPUT_PATH'proton/'$pointing'*simtel.gz'
 PROTON_FILES=($(ls $PROTON_FILES))
 GAMMA_DIFFUSE_FILES=$INPUT_PATH'gamma-diffuse/'$pointing'*simtel.gz'
 GAMMA_DIFFUSE_FILES=($(ls $GAMMA_DIFFUSE_FILES))
-FILES=("${GAMMA_FILES[@]}" "${PROTON_FILES[@]}" "${GAMMA_DIFFUSE_FILES[@]}")
+ELECTRON_DIFFUSE_FILES=$INPUT_PATH'electron/'$pointing'*simtel.gz'
+ELECTRON_DIFFUSE_FILES=($(ls $ELECTRON_DIFFUSE_FILES))
+# FILES=("${GAMMA_FILES[@]}" "${PROTON_FILES[@]}" "${GAMMA_DIFFUSE_FILES[@]}" "${ELECTRON_DIFFUSE_FILES[@]}")
 # FILES=("${GAMMA_FILES[@]}")
-echo ${#PROTON_FILES[@]} "proton files," ${#GAMMA_FILES[@]} "gamma files," ${#GAMMA_DIFFUSE_FILES[@]}  "gamma gamma_diffuse files"
+FILES=("${ELECTRON_DIFFUSE_FILES[@]}")
+echo ${#PROTON_FILES[@]} "proton files," ${#GAMMA_FILES[@]} "gamma files," ${#GAMMA_DIFFUSE_FILES[@]}  "gamma_diffuse files," ${#ELECTRON_DIFFUSE_FILES[@]} "electron diffuse files"
 echo "Total" ${#FILES[@]} "files"
 
 STEP=1000

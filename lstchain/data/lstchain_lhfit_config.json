@@ -160,11 +160,16 @@
     }
   },
   "lh_fit_config": {
-    "n_call": null,
+    "sigma_s": 0.5716,
+    "crosstalk": 0.0,
+    "gain_high": 40.0,
+    "gain_low": 2.2,
+    "ncall": 300,
     "sigma_space": 3,
     "sigma_time": 4,
-    "time_before_shower": 20,
-    "time_after_shower": 40,
-    "n_peaks": 500
+    "time_before_shower": 5,
+    "time_after_shower": 20,
+    "n_peaks": 300,
+    "verbose": false
   }
 }

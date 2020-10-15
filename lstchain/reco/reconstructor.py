@@ -434,11 +434,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         photoelectron_peak = np.arange(n_peaks, dtype=np.int)
         self.photo_peaks = photoelectron_peak
         photoelectron_peak = photoelectron_peak[..., None]
-        sigma_n = self.error[:, 0] ** 2 + photoelectron_peak * self.sigma_s ** 2
-        sigma_n = np.sqrt(sigma_n)
-        self.sigma_n = sigma_n
-
-        self.photo_peaks
         mask = (self.photo_peaks == 0)
         self.photo_peaks[mask] = 1
         log_k = np.log(self.photo_peaks)
@@ -488,10 +483,14 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         mean = self.photo_peaks * ((self.gain[..., None] * self.template(t)))[
             ..., None]
         x = self.data - self.baseline[..., None]
-        sigma_n = np.expand_dims(self.sigma_n.T, axis=1)
+
+        sigma_n = self.photo_peaks * ((self.sigma_s[..., None] * self.template(t)) ** 2)[..., None]
+        sigma_n = (self.error**2)[..., None] + sigma_n
+        sigma_n = np.sqrt(sigma_n)
+
+        # sigma_n = np.expand_dims(self.sigma_n.T, axis=1)
 
         log_gauss = log_gaussian(x[..., None], mean, sigma_n)
-
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
         log_pdf = log_poisson + log_gauss
         pdf = np.sum(np.exp(log_pdf), axis=-1)
