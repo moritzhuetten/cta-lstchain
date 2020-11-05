@@ -15,11 +15,6 @@ import numpy as np
 import pandas as pd
 import tables
 from astropy.table import Table
-from traitlets.config import Config
-
-from ctapipe.utils import get_dataset_path
-from ctapipe.io import event_source, HDF5TableWriter
-from ctapipe.instrument import OpticsDescription, CameraGeometry
 from ctapipe.image import (
     HillasParameterizationError,
     hillas_parameters,
@@ -27,8 +22,13 @@ from ctapipe.image import (
     apply_time_delta_cleaning,
 )
 from ctapipe.image.morphology import number_of_islands
+<<<<<<< HEAD
 from ctapipe.instrument import OpticsDescription
 from ctapipe.io import EventSource, HDF5TableWriter
+=======
+from ctapipe.instrument import OpticsDescription, CameraGeometry
+from ctapipe.io import event_source, HDF5TableWriter
+>>>>>>> cleaning duplicated or unused code
 from ctapipe.utils import get_dataset_path
 from traitlets.config import Config
 from ctapipe.calib.camera import CameraCalibrator
@@ -41,8 +41,6 @@ from ..calib.camera import lst_calibration, load_calibrator_from_config
 from ..calib.camera.calibration_calculator import CalibrationCalculator
 from ..image.muon import analyze_muon_event, tag_pix_thr
 from ..image.muon import create_muon_table, fill_muon_event
-from ..paths import parse_r0_filename, run_to_dl1_filename, r0_to_dl1_filename
-from ..visualization.camera import display_dl1_event, display_array_camera
 from .reconstructor import TimeWaveformFitter, NormalizedPulseTemplate
 
 
@@ -551,6 +549,7 @@ def r0_to_dl1(
                         dl1_container=dl1_container,
                         custom_config=config,
                     )
+
                 except HillasParameterizationError:
                     logging.exception(
                         'HillasParameterizationError in get_dl1()'
