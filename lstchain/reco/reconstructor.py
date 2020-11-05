@@ -18,7 +18,7 @@ from lstchain.visualization.camera import display_array_camera
 class DL0Fitter(ABC):
 
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
-                 template, gain=1, baseline=0, crosstalk=0,
+                 template, gain=1, gain_separator=0.5, baseline=0, crosstalk=0,
                  sigma_space=4, sigma_time=3,
                  sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
                  time_before_shower=10, time_after_shower=50,
@@ -50,8 +50,6 @@ class DL0Fitter(ABC):
                        'v': '$v$ [m/ns]'
                        }
 
-        self.template = template
-
         self.sigma_amplitude = sigma_amplitude
         self.sigma_space = sigma_space
         self.sigma_time = sigma_time
@@ -72,10 +70,6 @@ class DL0Fitter(ABC):
         self.baseline = baseline[self.mask_pixel]
         self.sigma_s = sigma_s[self.mask_pixel]
         self.crosstalk = crosstalk[self.mask_pixel]
-
-        self.geometry = geometry
-        self.dt = dt
-        self.template = template
 
         self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
         self.times = (np.arange(0, self.n_samples) * self.dt)[self.mask_time]
@@ -479,12 +473,16 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[..., None] - x + log_x
         # print(log_poisson)
-
-        mean = self.photo_peaks * ((self.gain[..., None] * self.template(t)))[
-            ..., None]
+        if np.mean(self.gain) > gain_separator:
+            gaintype = 'HG'
+	    else :
+	        gaintype = 'LG'
+        mean = self.photo_peaks * ((self.gain[..., None] * 
+               self.template(t,gain=gaintype)))[..., None]
         x = self.data - self.baseline[..., None]
 
-        sigma_n = self.photo_peaks * ((self.sigma_s[..., None] * self.template(t)) ** 2)[..., None]
+        sigma_n = self.photo_peaks * ((self.sigma_s[..., None] * 
+                  self.template(t,gain=gaintype)) ** 2)[..., None]
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
 
@@ -599,64 +597,86 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
 class NormalizedPulseTemplate:
 
-    def __init__(self, amplitude, time, amplitude_std=None):
+    def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None, amplitude_LG_std=None):
         self.time = np.array(time)
-        self.amplitude = np.array(amplitude)
-        if amplitude_std is not None:
-            assert np.array(amplitude_std).shape == self.amplitude.shape
-            self.amplitude_std = np.array(amplitude_std)
+        self.amplitude_HG = np.array(amplitude_HG)
+	    self.amplitude_LG = np.array(amplitude_LG)
+	    if amplitude_HG_std is not None:
+	        assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
+	        self.amplitude_HG_std = np.array(amplitude_HG_std)
         else:
-            self.amplitude_std = self.amplitude * 0
+            self.amplitude_HG_std = np.zeros(self.amplitude_HG.shape)
+        if amplitude_LG_std is not None:
+            assert np.array(amplitude_LG_std).shape == self.amplitude_LG.shape
+            self.amplitude_LG_std = np.array(amplitude_LG_std)
+        else:
+            self.amplitude_LG_std = self.amplitude_LG * 0
         self._template = self._interpolate()
         self._template_std = self._interpolate_std()
 
-    def __call__(self, time, amplitude=1, t_0=0, baseline=0):
-        y = amplitude * self._template(time - t_0) + baseline
+    def __call__(self, time, gain, amplitude=1, t_0=0, baseline=0):
+        y = amplitude * self._template[gain](time - t_0) + baseline
         return np.array(y)
 
     def std(self, time, amplitude=1, t_0=0, baseline=0):
         y = amplitude * self._template_std(time - t_0) + baseline
         return np.array(y)
-
+    """
     def __getitem__(self, item):
         return NormalizedPulseTemplate(amplitude=self.amplitude[item],
                                        time=self.time)
-
+    """
     def save(self, filename):
-        data = np.vstack([self.time, self.amplitude, self.amplitude_std])
+        data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_std, self.amplitude_LG, self.amplitude_LG_std])
         np.savetxt(filename, data.T)
 
     @classmethod
     def load(cls, filename):
         data = np.loadtxt(filename).T
-        assert len(data) in [2, 3]
-        if len(data) == 2:  # no std in file
+        assert len(data) in [2, 3, 5]
+        if len(data) == 2:  # one shape in file
             t, x = data
-            return cls(amplitude=x, time=t)
-        elif len(data) == 3:
-            t, x, dx = data
-            return cls(amplitude=x, time=t, amplitude_std=dx)
+            return cls(amplitude_HG=x, amplitude_LG=x, time=t)
+        if len(data) == 3:  # no error in file
+            t, hg, lg = data
+            return cls(amplitude_HG=hg, amplitude_LG=lg, time=t)
+        elif len(data) == 5: # two gains and errors
+            t, hg, lg, dhg, dlg = data
+            return cls(amplitude_HG=hg, amplitude_LG=lg, time=t, amplitude_HG_std=dhg, amplitude_LG_std=dlg)
+
 
     def _interpolate(self):
-        if abs(np.min(self.amplitude)) <= abs(np.max(self.amplitude)):
-
-            normalization = np.max(self.amplitude)
-
+        if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
+	            normalization = np.max(self.amplitude_HG)
         else:
+            normalization = np.min(self.amplitude_HG)
 
-            normalization = np.min(self.amplitude)
+        self.amplitude_HG = self.amplitude_HG / normalization
+        self.amplitude_HG_std = self.amplitude_HG_std / normalization
 
-        self.amplitude = self.amplitude / normalization
-        self.amplitude_std = self.amplitude_std / normalization
+ 	        if abs(np.min(self.amplitude_LG)) <= abs(np.max(self.amplitude_LG)):
+	            normalization = np.max(self.amplitude_LG)
+	        else:
+	            normalization = np.min(self.amplitude_LG)
 
-        return interp1d(self.time, self.amplitude, kind='cubic',
-                        bounds_error=False, fill_value=0., assume_sorted=True)
+        self.amplitude_LG = self.amplitude_LG / normalization
+        self.amplitude_LG_std = self.amplitude_LG_std / normalization
 
-    def _interpolate_std(self):
-        return interp1d(self.time, self.amplitude_std, kind='cubic',
-                        bounds_error=False, fill_value=np.inf,
-                        assume_sorted=True)
+ 	    return {"HG" : interp1d(self.time, self.amplitude_HG, kind='cubic',
+	                            bounds_error=False, fill_value=0., assume_sorted=True),
+	            "LG" : interp1d(self.time, self.amplitude_LG, kind='cubic',
+	                            bounds_error=False, fill_value=0., assume_sorted=True)}
+	                
+	
+	def _interpolate_std(self):
+	    return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
+	                   bounds_error=False, fill_value=np.inf, assume_sorted=True),
+	            "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
+	                   bounds_error=False, fill_value=np.inf, assume_sorted=True)}
 
+ 
+    # commenting unused old function for now
+    """
     def integral(self, order=1):
         return np.trapz(y=self.amplitude**order, x=self.time)
 
@@ -716,9 +736,13 @@ class NormalizedPulseTemplate:
         axes.set_xlabel('time [ns]')
         axes.set_ylabel('normalised amplitude [a.u.]')
         return axes
-
+    """
     def compute_time_of_max(self):
-
+        t_max = (self.time[np.argmax(self.amplitude_HG)] +
+                 self.time[np.argmax(self.amplitude_LG)])/2
+        return t_max
+        # old method below, more precise possible for one gain
+        """
         dt = np.diff(self.time)[0]
         index_max = np.argmax(self.amplitude)
         t = np.linspace(self.time[index_max] - dt,
@@ -727,3 +751,5 @@ class NormalizedPulseTemplate:
         t_max = self(t).argmax()
         t_max = t[t_max]
         return t_max
+        """
+
