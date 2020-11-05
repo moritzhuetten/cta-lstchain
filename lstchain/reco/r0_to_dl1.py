@@ -410,7 +410,7 @@ def r0_to_dl1(
             metadata=metadata,
         )
 
-    pulse_template = NormalizedPulseTemplate.load('/home/cyril.alispach/ctasoft/lstchain/prod3_cfg/LST-PMT-pulse_shape.dat')
+    pulse_template = NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location'])
 
     with HDF5TableWriter(
         filename=output_filename,
