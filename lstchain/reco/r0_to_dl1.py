@@ -16,8 +16,6 @@ import pandas as pd
 import tables
 from astropy.table import Table
 from traitlets.config import Config
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 from ctapipe.utils import get_dataset_path
 from ctapipe.io import event_source, HDF5TableWriter
@@ -82,7 +80,7 @@ cleaning_method = tailcuts_clean
 
 
 
-geom = CameraGeometry.from_name('LSTCam')
+geom = CameraGeometry.from_name('LSTCam') #TODO check if global variable needed and camera type hard coded
 
 
 def get_dl1(
@@ -191,16 +189,17 @@ def get_dl1(
 
 def get_dl1_lh_fit(
     calibrated_event,
+    subarray,
     telescope_id,
     dl1_container,
     normalized_pulse_template,
     image,
     custom_config={},
-    geometry=geom,
+    geometry=geom, #TODO check why default value, check why the global variable is still used in the function
     use_main_island=True,):
 
     lh_fit_config = custom_config['lh_fit_config']
-    tel = calibrated_event.inst.subarray.tels[telescope_id]
+    telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
     waveform = calibrated_event.r0.tel[telescope_id].waveform
     n_channels, n_pixels, n_samples = waveform.shape
     baseline = np.atleast_3d(calibrated_event.mc.tel[telescope_id].pedestal) / n_samples
@@ -209,6 +208,13 @@ def get_dl1_lh_fit(
     flat_field = 1 / calibrated_event.mc.tel[telescope_id].dc_to_pe
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
 
+    # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion 
+    foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
+    width = foclen*np.tan(np.deg2rad(dl1_container.width))
+    length = foclen*np.tan(np.deg2rad(dl1_container.length))
+    dl1_container.width = width
+    dl1_container.length = length
+    
     mask_high = (selected_gains == 0)
 
     waveform = waveform[0] * mask_high[:, None] + waveform[1] * (~mask_high[:, None])
@@ -281,6 +287,13 @@ def get_dl1_lh_fit(
         # fitter.fill_event(waveform, np.ones(waveform.shape))
 
         fitter.predict(dl1_container, verbose=lh_fit_config['verbose'], ncall=lh_fit_config['ncall'])
+
+        # convert ctapipe's width and length (in m) to deg: #TODO see previous
+        foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
+        width = np.rad2deg(np.arctan2(dl1_container.width, foclen))
+        length = np.rad2deg(np.arctan2(dl1_container.length, foclen))
+        dl1_container.width = width
+        dl1_container.length = length
 
         if lh_fit_config['verbose']:
             axes = fitter.plot(init=True)
@@ -445,6 +458,8 @@ def r0_to_dl1(
             if event.simulation is not None:
                 event.simulation.prefix = 'mc'
 
+            dl1_container.reset()
+
             # write sub tables
             if is_simu:
                 write_subarray_tables(writer, event, metadata)
@@ -536,7 +551,6 @@ def r0_to_dl1(
                         dl1_container=dl1_container,
                         custom_config=config,
                     )
-
                 except HillasParameterizationError:
                     logging.exception(
                         'HillasParameterizationError in get_dl1()'
