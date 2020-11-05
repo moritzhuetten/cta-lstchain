@@ -222,7 +222,7 @@ def get_dl1_lh_fit(
     gain = np.array([gain_high, gain_low]) * flat_field
 
     gain = gain[0] * mask_high + gain[1] * (~mask_high)
-    gain_separator = (gain_high + gain_low)/2
+    gain_separator = (lh_fit_config['gain_low'] + lh_fit_config['gain_high'])/2
     sigma_s = np.ones(n_pixels) * lh_fit_config['sigma_s'] * gain
     baseline = np.zeros(n_pixels)
     crosstalk = np.ones(n_pixels) * lh_fit_config['crosstalk']

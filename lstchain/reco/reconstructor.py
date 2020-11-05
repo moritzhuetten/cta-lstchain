@@ -25,6 +25,7 @@ class DL0Fitter(ABC):
                   bound_parameters=None):
 
         self.gain = gain
+        self.gain_separator = gain_separator
         self.baseline = baseline
         self.sigma_s = sigma_s
         self.crosstalk = crosstalk
@@ -473,10 +474,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[..., None] - x + log_x
         # print(log_poisson)
-        if np.mean(self.gain) > gain_separator:
+        if np.mean(self.gain) > self.gain_separator:
             gaintype = 'HG'
-	    else :
-	        gaintype = 'LG'
+        else :
+            gaintype = 'LG'
         mean = self.photo_peaks * ((self.gain[..., None] * 
                self.template(t,gain=gaintype)))[..., None]
         x = self.data - self.baseline[..., None]
@@ -600,10 +601,10 @@ class NormalizedPulseTemplate:
     def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None, amplitude_LG_std=None):
         self.time = np.array(time)
         self.amplitude_HG = np.array(amplitude_HG)
-	    self.amplitude_LG = np.array(amplitude_LG)
-	    if amplitude_HG_std is not None:
-	        assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
-	        self.amplitude_HG_std = np.array(amplitude_HG_std)
+        self.amplitude_LG = np.array(amplitude_LG)  
+        if amplitude_HG_std is not None:
+            assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
+            self.amplitude_HG_std = np.array(amplitude_HG_std)
         else:
             self.amplitude_HG_std = np.zeros(self.amplitude_HG.shape)
         if amplitude_LG_std is not None:
@@ -647,32 +648,32 @@ class NormalizedPulseTemplate:
 
     def _interpolate(self):
         if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
-	            normalization = np.max(self.amplitude_HG)
+                normalization = np.max(self.amplitude_HG)
         else:
             normalization = np.min(self.amplitude_HG)
 
         self.amplitude_HG = self.amplitude_HG / normalization
         self.amplitude_HG_std = self.amplitude_HG_std / normalization
 
- 	        if abs(np.min(self.amplitude_LG)) <= abs(np.max(self.amplitude_LG)):
-	            normalization = np.max(self.amplitude_LG)
-	        else:
-	            normalization = np.min(self.amplitude_LG)
+        if abs(np.min(self.amplitude_LG)) <= abs(np.max(self.amplitude_LG)):
+            normalization = np.max(self.amplitude_LG)
+        else:
+            normalization = np.min(self.amplitude_LG)
 
         self.amplitude_LG = self.amplitude_LG / normalization
         self.amplitude_LG_std = self.amplitude_LG_std / normalization
 
- 	    return {"HG" : interp1d(self.time, self.amplitude_HG, kind='cubic',
-	                            bounds_error=False, fill_value=0., assume_sorted=True),
-	            "LG" : interp1d(self.time, self.amplitude_LG, kind='cubic',
-	                            bounds_error=False, fill_value=0., assume_sorted=True)}
-	                
-	
-	def _interpolate_std(self):
-	    return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
-	                   bounds_error=False, fill_value=np.inf, assume_sorted=True),
-	            "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
-	                   bounds_error=False, fill_value=np.inf, assume_sorted=True)}
+        return {"HG" : interp1d(self.time, self.amplitude_HG, kind='cubic',
+                                bounds_error=False, fill_value=0., assume_sorted=True),
+                "LG" : interp1d(self.time, self.amplitude_LG, kind='cubic',
+                                bounds_error=False, fill_value=0., assume_sorted=True)}
+                
+
+    def _interpolate_std(self):
+        return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
+                       bounds_error=False, fill_value=np.inf, assume_sorted=True),
+                "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
+                       bounds_error=False, fill_value=np.inf, assume_sorted=True)}
 
  
     # commenting unused old function for now
