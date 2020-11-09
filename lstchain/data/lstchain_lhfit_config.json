@@ -164,8 +164,8 @@
   "lh_fit_config": {
     "sigma_s": 0.5716,     
     "crosstalk": 0.0,     
-    "gain_high": 40.0,
-    "gain_low": 2.2,
+    "gain_high": 25,
+    "gain_low": 1.28,
     "pulse_template_location": "/fefs/aswg/workspace/gabriel.emery/config/prod3/LST-PMT-pulse_shape.dat",
     "ncall": 300,
     "sigma_space": 3,     
