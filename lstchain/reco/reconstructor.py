@@ -482,7 +482,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                        self.template(t, gain='HG')))[
             ..., None]
 
-        mean = (mean_HG * self.is_high_gain) + mean_LG * (~self.is_high_gain)
+        mean = (mean_HG.T * self.is_high_gain) + mean_LG.T * (~self.is_high_gain)
+        mean = mean.T
 
         x = self.data - self.baseline[..., None]
 
@@ -492,7 +493,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         sigma_n_HG = self.photo_peaks * ((self.sigma_s[..., None] *
                                        self.template(t, gain='HG')) ** 2)[
             ..., None]
-        sigma_n = sigma_n_HG * self.is_high_gain + sigma_n_LG * (~self.is_high_gain)
+        sigma_n = sigma_n_HG.T * self.is_high_gain + sigma_n_LG.T * (~self.is_high_gain)
+        sigma_n = sigma_n.T
 
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
