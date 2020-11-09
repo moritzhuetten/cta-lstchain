@@ -68,6 +68,7 @@ class DL0Fitter(ABC):
 
         self.mask_pixel, self.mask_time = self.clean_data()
         self.gain = gain[self.mask_pixel]
+        self.is_high_gain = is_high_gain[self.mask_pixel]
         self.baseline = baseline[self.mask_pixel]
         self.sigma_s = sigma_s[self.mask_pixel]
         self.crosstalk = crosstalk[self.mask_pixel]
@@ -474,16 +475,25 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[..., None] - x + log_x
         # print(log_poisson)
-        if np.mean(self.gain) > self.is_high_gain:
-            gaintype = 'HG'
-        else :
-            gaintype = 'LG'
-        mean = self.photo_peaks * ((self.gain[..., None] * 
-               self.template(t,gain=gaintype)))[..., None]
+        mean_LG = self.photo_peaks * ((self.gain[..., None] *
+               self.template(t, gain='LG')))[..., None]
+
+        mean_HG = self.photo_peaks * ((self.gain[..., None] *
+                                       self.template(t, gain='HG')))[
+            ..., None]
+
+        mean = (mean_HG * self.is_high_gain) + mean_LG * (~self.is_high_gain)
+
         x = self.data - self.baseline[..., None]
 
-        sigma_n = self.photo_peaks * ((self.sigma_s[..., None] * 
-                  self.template(t,gain=gaintype)) ** 2)[..., None]
+        sigma_n_LG = self.photo_peaks * ((self.sigma_s[..., None] *
+                  self.template(t, gain='LG')) ** 2)[..., None]
+
+        sigma_n_HG = self.photo_peaks * ((self.sigma_s[..., None] *
+                                       self.template(t, gain='HG')) ** 2)[
+            ..., None]
+        sigma_n = sigma_n_HG * self.is_high_gain + sigma_n_LG * (~self.is_high_gain)
+
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
 
