@@ -222,7 +222,6 @@ def get_dl1_lh_fit(
     gain = np.array([gain_high, gain_low]) * flat_field
 
     gain = gain[0] * mask_high + gain[1] * (~mask_high)
-    gain_separator = (lh_fit_config['gain_low'] + lh_fit_config['gain_high'])/2
     sigma_s = np.ones(n_pixels) * lh_fit_config['sigma_s'] * gain
     baseline = np.zeros(n_pixels)
     crosstalk = np.ones(n_pixels) * lh_fit_config['crosstalk']
@@ -274,7 +273,7 @@ def get_dl1_lh_fit(
                                 geometry=geometry, dt=1,
                                 n_samples=n_samples,
                                 template=normalized_pulse_template,
-                                gain=gain, gain_separator=gain_separator,
+                                gain=gain, is_high_gain=mask_high,
                                 baseline=baseline, crosstalk=crosstalk,
                                 sigma_space=lh_fit_config['sigma_space'],
                                 sigma_time=lh_fit_config['sigma_time'],

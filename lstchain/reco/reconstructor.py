@@ -18,14 +18,14 @@ from lstchain.visualization.camera import display_array_camera
 class DL0Fitter(ABC):
 
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
-                 template, gain=1, gain_separator=0.5, baseline=0, crosstalk=0,
+                 template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
                  sigma_space=4, sigma_time=3,
                  sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
                  time_before_shower=10, time_after_shower=50,
-                  bound_parameters=None):
+                 bound_parameters=None):
 
         self.gain = gain
-        self.gain_separator = gain_separator
+        self.is_high_gain = is_high_gain
         self.baseline = baseline
         self.sigma_s = sigma_s
         self.crosstalk = crosstalk
@@ -474,7 +474,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[..., None] - x + log_x
         # print(log_poisson)
-        if np.mean(self.gain) > self.gain_separator:
+        if np.mean(self.gain) > self.is_high_gain:
             gaintype = 'HG'
         else :
             gaintype = 'LG'
