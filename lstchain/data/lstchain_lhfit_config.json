@@ -162,7 +162,7 @@
     }
   },
   "lh_fit_config": {
-    "sigma_s": 0.5716,     
+    "sigma_s": 0.3282,
     "crosstalk": 0.0,     
     "gain_high": 25,
     "gain_low": 1.28,
