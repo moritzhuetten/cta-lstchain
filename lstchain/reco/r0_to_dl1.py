@@ -22,13 +22,8 @@ from ctapipe.image import (
     apply_time_delta_cleaning,
 )
 from ctapipe.image.morphology import number_of_islands
-<<<<<<< HEAD
-from ctapipe.instrument import OpticsDescription
-from ctapipe.io import EventSource, HDF5TableWriter
-=======
 from ctapipe.instrument import OpticsDescription, CameraGeometry
-from ctapipe.io import event_source, HDF5TableWriter
->>>>>>> cleaning duplicated or unused code
+from ctapipe.io import EventSource, HDF5TableWriter
 from ctapipe.utils import get_dataset_path
 from traitlets.config import Config
 from ctapipe.calib.camera import CameraCalibrator
@@ -77,7 +72,7 @@ cleaning_method = tailcuts_clean
 
 
 
-geom = CameraGeometry.from_name('LSTCam') #TODO check if global variable needed and camera type hard coded
+geom = CameraGeometry.from_name('LSTCam-003') #TODO check if global variable needed and camera type hard coded
 
 
 def get_dl1(
