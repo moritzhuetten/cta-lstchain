@@ -166,13 +166,13 @@
     "crosstalk": 0.0,     
     "gain_high": 25,
     "gain_low": 1.28,
-    "pulse_template_location": "/fefs/aswg/workspace/gabriel.emery/config/prod3/LST-PMT-pulse_shape.dat",
+    "pulse_template_location": "/fefs/aswg/workspace/gabriel.emery/config/prod5/pulse_LST_8dynode_pix6_20200204.dat",
     "ncall": 300,
     "sigma_space": 3,     
     "sigma_time": 4,
     "time_before_shower": 5,
     "time_after_shower": 20,
-    "n_peaks": 300,
+    "n_peaks": 200,
     "verbose": false
   }
 }
