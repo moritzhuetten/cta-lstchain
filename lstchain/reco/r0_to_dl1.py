@@ -537,13 +537,26 @@ def r0_to_dl1(
                 assert event.dl1.tel[telescope_id].image is not None
 
                 try:
-                    get_dl1(
-                        event,
-                        subarray,
-                        telescope_id,
-                        dl1_container=dl1_container,
-                        custom_config=config,
-                    )
+                    dl1_filled = get_dl1(event,
+                                          subarray, telescope_id,
+                                          dl1_container=dl1_container,
+                                          custom_config=config,
+                                          use_main_island=True)
+                    image = event.dl1.tel[telescope_id].image
+
+                    if ('lh_fit_config' in config.keys()) and (dl1_filled is not None):
+                        is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
+
+                        if not is_saturated: #reject computationnally expensive events which would be poorly estimate with the selected value of n_peak TODO : improve to not reject events
+
+                            dl1_filled = get_dl1_lh_fit(event,
+                                                        subarray,
+                                                        telescope_id,
+                                                        image=image,
+                                                        normalized_pulse_template=pulse_template,
+                                                        dl1_container=dl1_filled,
+                                                        custom_config=config,
+                                                        use_main_island=True)
 
                 except HillasParameterizationError:
                     logging.exception(
