@@ -186,18 +186,25 @@ def get_dl1_lh_fit(
     dl1_container,
     normalized_pulse_template,
     image,
+    is_simu,
     custom_config={},
     geometry=geom, #TODO check why default value, check why the global variable is still used in the function
     use_main_island=True,):
 
     lh_fit_config = custom_config['lh_fit_config']
     telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
-    waveform = calibrated_event.r0.tel[telescope_id].waveform
-    n_channels, n_pixels, n_samples = waveform.shape
-    baseline = np.atleast_3d(calibrated_event.mc.tel[telescope_id].pedestal) / n_samples
+    if is_simu:
+        waveform = calibrated_event.r0.tel[telescope_id].waveform
+        n_channels, n_pixels, n_samples = waveform.shape
+        baseline = np.atleast_3d(calibrated_event.mc.tel[telescope_id].pedestal) / n_samples
+        flat_field = 1 / calibrated_event.mc.tel[telescope_id].dc_to_pe
+    else:
+        waveform = calibrated_event.r1.tel[telescope_id].waveform
+        n_channels, n_pixels, n_samples = waveform.shape
+        baseline = np.atleast_3d(calibrated_event.mon.tel[telescope_id].pedestal['charge_mean']) / n_samples
+        flat_field = calibrated_event.mon.tel[telescope_id].flatfield['relative_gain_mean'] #Or 1/ that?
     waveform = (waveform - baseline)
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
-    flat_field = 1 / calibrated_event.mc.tel[telescope_id].dc_to_pe
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
 
     # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion 
@@ -301,7 +308,7 @@ def get_dl1_lh_fit(
             for params in fitter.start_parameters.keys():
                 axes = fitter.plot_likelihood(params)
                 axes.get_figure().savefig('event/' + params + '.png')
-
+            print("event plot produced, input?")
             input()
     except Exception as e:
 
@@ -405,7 +412,8 @@ def r0_to_dl1(
             metadata=metadata,
         )
 
-    pulse_template = NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location'])
+    if ('lh_fit_config' in config.keys()):
+        pulse_template = NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location'])
 
     with HDF5TableWriter(
         filename=output_filename,
@@ -544,7 +552,7 @@ def r0_to_dl1(
                                           use_main_island=True)
                     image = event.dl1.tel[telescope_id].image
 
-                    if ('lh_fit_config' in config.keys()) and (dl1_filled is not None):
+                    if ('lh_fit_config' in config.keys()) and dl1_filled['n_pixels'] is not 0 and dl1_filled['n_pixels']<1000 and (dl1_filled is not None):
                         is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
                         if not is_saturated: #reject computationnally expensive events which would be poorly estimate with the selected value of n_peak TODO : improve to not reject events
@@ -553,6 +561,7 @@ def r0_to_dl1(
                                                         subarray,
                                                         telescope_id,
                                                         image=image,
+                                                        is_simu=is_simu,
                                                         normalized_pulse_template=pulse_template,
                                                         dl1_container=dl1_filled,
                                                         custom_config=config,
