@@ -172,7 +172,8 @@
     "sigma_time": 4,
     "time_before_shower": 5,
     "time_after_shower": 20,
-    "n_peaks": 200,
+    "n_peaks": 300,
     "verbose": false
   }
 }
+

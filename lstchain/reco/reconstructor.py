@@ -463,8 +463,31 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                 psi=psi)
         mu = np.exp(log_mu)
 
+        # We reduce the sum by limiting the to the poisson term contributing for more than 10^6
+        # The limits are approximated by 2 broken linear function obtained for 0 crosstalk
+        # The choice of kmin and kmax is currently not done on a pixel basis
+        kmin = np.zeros(len(mu))
+        kmax = np.zeros(len(mu))
+        it = 0
+        for elt in mu:
+            if elt < 120:
+                kmin[it] = 0.66 * (elt-20)
+                kmax[it]=1.34*(elt-20)+45
+            else:
+                kmin[it] = 0.904 * elt - 42.8
+                kmax[it]=1.096*elt+47.8
+            it = it + 1
+        kmin[kmin<0] = 0
+        kmax = np.ceil(kmax)
+        kmin,kmax = min(kmin.astype(int)),max(kmax.astype(int))
+        if kmax > len(self.log_k):
+            kmax = len(self.log_k)
+        
         # log_mu[~mask] = -np.inf
         log_k = self.log_k
+
+        self.photo_peaks = np.arange(kmin, kmax, dtype=np.int)
+        self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
         x = mu + self.crosstalk_factor
         # x = np.rollaxis(x, 0, 3)
@@ -473,7 +496,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # log_x[~mask] = -np.inf
 
         log_x = ((self.photo_peaks - 1) * log_x.T).T
-        log_poisson = log_mu - log_k[..., None] - x + log_x
+        log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
         # print(log_poisson)
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                self.template(t, gain='LG')))[..., None]
