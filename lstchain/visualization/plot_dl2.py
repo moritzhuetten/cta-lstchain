@@ -353,7 +353,6 @@ def plot_disp_vector(data):
     axes[1].set_title('disp_dy')
 
 
-
 def plot_pos(data, true_hadroness=False):
     """Plot the performance of reconstructed position
     Parameters:

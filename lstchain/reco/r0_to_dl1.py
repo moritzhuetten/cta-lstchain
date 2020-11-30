@@ -38,7 +38,6 @@ from ..image.muon import analyze_muon_event, tag_pix_thr
 from ..image.muon import create_muon_table, fill_muon_event
 from .reconstructor import TimeWaveformFitter, NormalizedPulseTemplate
 
-
 from ..io import (
     DL1ParametersContainer,
     replace_config,
@@ -67,6 +66,7 @@ __all__ = [
     'get_dl1',
     'r0_to_dl1',
 ]
+
 
 cleaning_method = tailcuts_clean
 
@@ -190,6 +190,33 @@ def get_dl1_lh_fit(
     custom_config={},
     geometry=geom, #TODO check why default value, check why the global variable is still used in the function
     use_main_island=True,):
+    """
+    Return a DL1ParametersContainer of extracted features from a calibrated event.
+    The features are extracted by maximizing an image likelihood function over pixels ands time samples.
+    The model consider a 2D Gaussian distribution of the charge and a linear temporal model. The spatio-yemporal image model is then compared to the signal vs time in each pixel while taking into account the response of the instrument from calibration.
+    The DL1ParametersContainer needs to contain a first features estimation as seed for the likelihood fit.
+
+    Parameters
+    ----------
+    calibrated_event: ctapipe event container
+    subarray: `ctapipe.instrument.subarray.SubarrayDescription`
+    telescope_id: `int`
+    dl1_container: DL1ParametersContainer
+    normalized_pulse_template: NormalizedPulseTemplate
+    image: array_like
+        Charge in each pixel
+    is_simu: `bool`
+    custom_config: path to a configuration file
+        contains the camera calibration parameters
+        configuration used for tailcut cleaning
+        superseeds the standard configuration
+    use_main_island: `bool` Use only the main island
+        to calculate DL1 parameters
+
+    Returns
+    -------
+    DL1ParametersContainer
+    """
 
     lh_fit_config = custom_config['lh_fit_config']
     telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
@@ -202,7 +229,7 @@ def get_dl1_lh_fit(
         waveform = calibrated_event.r1.tel[telescope_id].waveform
         n_channels, n_pixels, n_samples = waveform.shape
         baseline = np.atleast_3d(calibrated_event.mon.tel[telescope_id].pedestal['charge_mean']) / n_samples
-        flat_field = calibrated_event.mon.tel[telescope_id].flatfield['relative_gain_mean'] #Or 1/ that?
+        flat_field = calibrated_event.mon.tel[telescope_id].flatfield['relative_gain_mean']
     waveform = (waveform - baseline)
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
@@ -451,8 +478,8 @@ def r0_to_dl1(
 
         for i, event in enumerate(source):
 
-            # if i % 100 == 0:
-            #     print(i)
+            if i % 100 == 0:
+                logger.info(i)
 
             event.dl0.prefix = ''
             event.trigger.prefix = ''
@@ -552,7 +579,9 @@ def r0_to_dl1(
                                           use_main_island=True)
                     image = event.dl1.tel[telescope_id].image
 
-                    if ('lh_fit_config' in config.keys()) and dl1_filled['n_pixels'] is not 0 and dl1_filled['n_pixels']<1000 and (dl1_filled is not None):
+                    if ('lh_fit_config' in config.keys()
+                       and dl1_filled['n_pixels'] is not 0
+                       and dl1_filled['n_pixels'] < 1000):
                         is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
                         if not is_saturated: #reject computationnally expensive events which would be poorly estimate with the selected value of n_peak TODO : improve to not reject events
