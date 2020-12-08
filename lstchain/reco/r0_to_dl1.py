@@ -175,7 +175,6 @@ def get_dl1(
     # We set other fields which still make sense for a non-parametrized
     # image:
     dl1_container.set_telescope_info(subarray, telescope_id)
-
     return dl1_container
 
 
@@ -240,7 +239,7 @@ def get_dl1_lh_fit(
     length = foclen*np.tan(np.deg2rad(dl1_container.length))
     dl1_container.width = width
     dl1_container.length = length
-    
+
     mask_high = (selected_gains == 0)
 
     waveform = waveform[0] * mask_high[:, None] + waveform[1] * (~mask_high[:, None])
@@ -272,8 +271,11 @@ def get_dl1_lh_fit(
                    'width': dl1_container.width.to(u.m).value,
                    'length': dl1_container.length.to(u.m).value}
 
+    if start_parameters['width'] <= 0.0:
+        start_parameters['width'] = 0.00001
+    if start_parameters['length'] <= 0.0:
+        start_parameters['length'] = 0.00001
     if start_parameters['t_cm'] == np.nan:
-
         start_parameters['t_cm'] = 0.
     if start_parameters['v'] == np.nan:
         start_parameters['v'] = 40
@@ -285,12 +287,12 @@ def get_dl1_lh_fit(
 
     bound_parameters={'x_cm': (geom.pix_x.to(u.m).value.min(), geom.pix_x.to(u.m).value.max()),
                       'y_cm': (geom.pix_y.to(u.m).value.min(), geom.pix_y.to(u.m).value.max()),
-                   'charge': (0, dl1_container.intensity * 10),
+                   'charge': (dl1_container.intensity * 0.01, dl1_container.intensity * 10),
                    't_cm': (-10, t_max + 10),
                    'v': (v_min, v_max),
                    'psi': (-np.pi, np.pi),
-                   'width': (0, r_max),
-                   'length': (0, r_max), }
+                   'width': (0.00001, r_max),
+                   'length': (0.00001, r_max), }
 
     try:
 
@@ -341,7 +343,6 @@ def get_dl1_lh_fit(
 
         print('Could not fit : ', e)
         return None
-
     return dl1_container
 
 def r0_to_dl1(

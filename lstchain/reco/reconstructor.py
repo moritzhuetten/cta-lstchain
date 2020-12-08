@@ -154,7 +154,7 @@ class DL0Fitter(ABC):
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
             m.migrad(ncall=ncall)
             self.end_parameters = dict(m.values)
-            options = {**self.end_parameters, **fixed_params}
+            options = {**self.end_parameters, **bounds_params, **fixed_params}
             m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
             m.migrad(ncall=ncall)
             try:
@@ -463,7 +463,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                 psi=psi)
         mu = np.exp(log_mu)
 
-        # We reduce the sum by limiting the to the poisson term contributing for more than 10^6
+        # We reduce the sum by limiting to the poisson term contributing for more than 10^6
         # The limits are approximated by 2 broken linear function obtained for 0 crosstalk
         # The choice of kmin and kmax is currently not done on a pixel basis
         kmin = np.zeros(len(mu))
@@ -479,7 +479,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
-        kmin,kmax = min(kmin.astype(int)),max(kmax.astype(int))
+        if len(kmin)==0 or len(kmax)==0:
+            kmin,kmax=0,len(self.log_k)
+        else:
+            kmin,kmax = min(kmin.astype(int)),max(kmax.astype(int))
         if kmax > len(self.log_k):
             kmax = len(self.log_k)
         
