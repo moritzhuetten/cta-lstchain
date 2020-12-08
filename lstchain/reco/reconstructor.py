@@ -16,6 +16,10 @@ from lstchain.visualization.camera import display_array_camera
 
 
 class DL0Fitter(ABC):
+    """
+        Base class for the extraction of DL1 parameters from R1 events using a log likelihood minimisation method.
+
+    """
 
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
                  template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
@@ -23,6 +27,48 @@ class DL0Fitter(ABC):
                  sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
                  time_before_shower=10, time_after_shower=50,
                  bound_parameters=None):
+        """
+            Initialise the data and parameters used for the fitting.
+
+            Parameters:
+            -----------
+            waveform: array
+                Calibrated signal in each pixel versus time
+            error: array or None
+                Error on the waveform
+            sigma_s: array
+                Standard deviation of the amplitude of the single photo-electron pluse
+            geometry:
+                Camera geometry
+            dt:
+            n_samples:
+            start_parameters: dictionary
+                Starting value of the image parameters for the fit
+            template: array
+                Temporal template of the response of the pixel to a photo-electron
+                Can contain two templates for high and low gain
+            gain: array
+                Selected gain in each pixel
+            is_high_gain: boolean array
+                Identify pixel with high gain selected
+            baseline: array
+                Remaining baseline in each pixel
+            crosstalk: float
+                Probability of a photo-electron to interact twice in a pixel
+            sigma_space: float
+                Size of the region over which the likelihood needs to be estimated in number of standard deviation away from the center of the spatial model
+            sigma_time: float
+                Time window around the peak of signal over which to compute the likelihood in number of temporal width of the signal
+            sigma_amplitude: unused?
+            picture_threshold: unused?
+            boundary_threshold: unused?
+            time_before_shower: float
+                Duration before the start/peak? of the signal which is not ignored
+            time_after_shower:
+                Duration after the star/peak? of the signal which is not ignored
+            bound_parameters: dictionary
+                Bounds for the parameters used during the fit
+        """
 
         self.gain = gain
         self.is_high_gain = is_high_gain
