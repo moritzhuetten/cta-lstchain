@@ -24,7 +24,6 @@ class DL0Fitter(ABC):
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
                  template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
                  sigma_space=4, sigma_time=3,
-                 sigma_amplitude=3, picture_threshold=15, boundary_threshold=10,
                  time_before_shower=10, time_after_shower=50,
                  bound_parameters=None):
         """
@@ -59,13 +58,10 @@ class DL0Fitter(ABC):
                 Size of the region over which the likelihood needs to be estimated in number of standard deviation away from the center of the spatial model
             sigma_time: float
                 Time window around the peak of signal over which to compute the likelihood in number of temporal width of the signal
-            sigma_amplitude: unused?
-            picture_threshold: unused?
-            boundary_threshold: unused?
             time_before_shower: float
-                Duration before the start/peak? of the signal which is not ignored
+                Duration before the start of the signal which is not ignored
             time_after_shower:
-                Duration after the star/peak? of the signal which is not ignored
+                Duration after the end of the signal which is not ignored
             bound_parameters: dictionary
                 Bounds for the parameters used during the fit
         """
@@ -97,11 +93,8 @@ class DL0Fitter(ABC):
                        'v': '$v$ [m/ns]'
                        }
 
-        self.sigma_amplitude = sigma_amplitude
         self.sigma_space = sigma_space
         self.sigma_time = sigma_time
-        self.picture_threshold = picture_threshold
-        self.boundary_threshold = boundary_threshold
         self.time_before_shower = time_before_shower
         self.time_after_shower = time_after_shower
 
@@ -463,10 +456,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                     lat / width) ** 2) < self.sigma_space ** 2
 
         v = self.start_parameters['v']
-        t_start = self.start_parameters['t_cm'] - (
-                    np.abs(v) * length / 2 * self.sigma_time) - 20
-        t_end = self.start_parameters['t_cm'] + (
-                    np.abs(v) * length / 2 * self.sigma_time) + 20
+        t_start = self.start_parameters['t_cm']
+                  - (np.abs(v) * length / 2 * self.sigma_time)
+                  - self.time_before_shower
+        t_end = self.start_parameters['t_cm']
+                  + (np.abs(v) * length / 2 * self.sigma_time)
+                  + self.time_after_shower
 
         mask_time = (self.times < t_end) * (self.times > t_start)
 
