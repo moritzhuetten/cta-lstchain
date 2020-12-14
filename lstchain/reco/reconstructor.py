@@ -39,8 +39,10 @@ class DL0Fitter(ABC):
                 Standard deviation of the amplitude of the single photo-electron pluse
             geometry:
                 Camera geometry
-            dt:
-            n_samples:
+            dt: float
+                Duration of time samples
+            n_samples: int
+                Number of time samples
             start_parameters: dictionary
                 Starting value of the image parameters for the fit
             template: array
@@ -122,18 +124,18 @@ class DL0Fitter(ABC):
         self.data = waveform
         self.error = error
 
-        pixels = np.arange(self.n_pixels)[~self.mask_pixel]
-        t = np.arange(self.n_samples)[~self.mask_time]
+        filter_pixels = np.arange(self.n_pixels)[~self.mask_pixel]
+        filter_times = np.arange(self.n_samples)[~self.mask_time]
 
         if error is None:
 
             std = np.std(self.data[~self.mask_pixel])
             self.error = np.ones(self.data.shape) * std
 
-        self.data = np.delete(self.data, pixels, axis=0)
-        self.data = np.delete(self.data, t, axis=1)
-        self.error = np.delete(self.error, pixels, axis=0)
-        self.error = np.delete(self.error, t, axis=1)
+        self.data = np.delete(self.data, filter_pixels, axis=0)
+        self.data = np.delete(self.data, filter_times, axis=1)
+        self.error = np.delete(self.error, filter_pixels, axis=0)
+        self.error = np.delete(self.error, filter_times, axis=1)
 
     @abstractmethod
     def clean_data(self):
@@ -163,6 +165,17 @@ class DL0Fitter(ABC):
 
         """
     def fit(self, verbose=True, minuit=True, ncall=None, **kwargs):
+        """
+            Performs the fitting procedure.
+
+        Parameters
+        ----------
+        verbose: boolean
+        minuit: boolean
+            If True, minuit is used to perform the fit. Else, scipy optimize is used instead
+        ncall: int
+            Maximum number of call for migrad
+        """
 
         if minuit:
 
@@ -431,14 +444,31 @@ class DL0Fitter(ABC):
 
 
 class TimeWaveformFitter(DL0Fitter, Reconstructor):
+    """
+        Specific class for the extraction of DL1 parameters from R1 events using a log likelihood minimisation method by fitting the spatial and temporal dependance of signal in the camera taking into account the calibrated response of the pixels.
+    """
+
 
     def __init__(self, *args, image, n_peaks=100, **kwargs):
+        """
+            Initialise the data and parameters used for the fitting, including method specific objects.
 
+            Parameters:
+            *args, **kwargs: Argument for the DL0Fitter initialisation
+            image: ADDTYPE
+                Image of the event in the camera
+            n_peak: int
+                Maximum upper bound of the sum over possible detected photo-electron value in the likelihood computation.
+            -----------
+        """
         self.image = image
         super().__init__(*args, **kwargs)
         self._initialize_pdf(n_peaks=n_peaks)
 
     def clean_data(self):
+        """
+            Method used to select pixels and time samples used in the fitting procedure.
+        """
 
         x_cm = self.start_parameters['x_cm']
         y_cm = self.start_parameters['y_cm']
@@ -468,6 +498,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         return mask_pixel, mask_time
 
     def _initialize_pdf(self, n_peaks):
+        """
+            Compute quantities used at each iteration of the fitting procedure.
+        """
+        #May need rework after accelaration addition
         photoelectron_peak = np.arange(n_peaks, dtype=np.int)
         self.photo_peaks = photoelectron_peak
         photoelectron_peak = photoelectron_peak[..., None]
@@ -482,6 +516,26 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
     def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
                 length, psi, v):
+        """
+            Compute the log likelihood of the model used for a set of input parameters.
+
+        Parameters
+        ----------
+        self: Contains all the information about the data and calibration
+        charge: float
+            Charge of the peak of the spatial model
+        t_cm: float
+            Time of the middle of the energy deposit in the camera for the temporal model
+        x_cm, y_cm: float
+            Position of the center of the spatial model
+        length, width: float
+            Spatial dispersion of the model along the main and minor axis
+        psi: float
+            Orientation of the main axis of the spatial model and of the propagation of the temporal model
+        v: float
+            Velocity of the evolution of the signal over the camera
+        """
+
         dx = (self.pix_x - x_cm)
         dy = (self.pix_y - y_cm)
         long = dx * np.cos(psi) + dy * np.sin(psi)
@@ -581,6 +635,15 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         return log_pdf
 
     def predict(self, container=DL1ParametersContainer(), **kwargs):
+        """
+            Call the fitting procedure and fill the results.
+
+        Parameters
+        ----------
+        container: DL1ParametersContainer
+            Location to fill with updated DL1 parameters
+        """
+
 
         self.fit(**kwargs)
 
@@ -676,8 +739,23 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
 
 class NormalizedPulseTemplate:
+    """
+        Class for handling the template for the pulsed response of the pixels of the camera to a single photo-electron in high and low gain.
+    """
 
     def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None, amplitude_LG_std=None):
+        """
+            Save the pulse template and optionnal error and create an interpolation.
+
+        Parameters
+        ----------
+        amplitude_HG/LG: array
+            Amplitude of the signal produced in a pixel by a photo-electron in high gain (HG) and low gain (LG) for successive time samples
+        time: array
+            Times of the samples
+        amplitude_HG/LG_std: array
+            Error on the pulse template amplitude
+        """
         self.time = np.array(time)
         self.amplitude_HG = np.array(amplitude_HG)
         self.amplitude_LG = np.array(amplitude_LG)  
@@ -695,10 +773,34 @@ class NormalizedPulseTemplate:
         self._template_std = self._interpolate_std()
 
     def __call__(self, time, gain, amplitude=1, t_0=0, baseline=0):
+        """
+            Use the interpolated template to access the value of the pulse at time = time in gain regime = gain. Additionnally, an alternative normalisation, origin of time and baseline can be used.
+
+        Parameters
+        ----------
+        time: float array
+            Time after the origin after which to estimate the value of the pulse
+        gain: string array
+            Identifier of the gain channel used for each pixel. Either "HG" or "LG"
+        amplitude: float
+            Normalisation factor to aply to the template
+        t_0: float
+            Shift in the origin of time
+        baseline: float array
+            Baseline to be substracted for each pixel
+
+        Return
+        ----------
+        y: array
+            Value of the template in each pixel at the requested times
+        """
         y = amplitude * self._template[gain](time - t_0) + baseline
         return np.array(y)
 
     def std(self, time, amplitude=1, t_0=0, baseline=0):
+        """
+
+        """
         y = amplitude * self._template_std(time - t_0) + baseline
         return np.array(y)
     """
@@ -707,11 +809,27 @@ class NormalizedPulseTemplate:
                                        time=self.time)
     """
     def save(self, filename):
+        """
+            Save a loaded template to a text file.
+        """
         data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_std, self.amplitude_LG, self.amplitude_LG_std])
         np.savetxt(filename, data.T)
 
     @classmethod
     def load(cls, filename):
+        """
+        Load a pulse template from a text file. Allows for only one gain channel and no errors, two gain channels and no errors or two gain channels with errors.
+
+        Parameters
+        ----------
+        cls: This class
+        filename: string
+            Location of the template file
+
+        Return
+        ----------
+        cls(): Instance of NormalizedPulseTemplate receiving the information from the input file
+        """
         data = np.loadtxt(filename).T
         assert len(data) in [2, 3, 5]
         if len(data) == 2:  # one shape in file
@@ -726,6 +844,13 @@ class NormalizedPulseTemplate:
 
 
     def _interpolate(self):
+        """
+        Creates a normalised interpolation of the pulse template from a discrete and non-normalised input. Also normalises the error.
+
+        Return
+        ----------
+        A dictionnary containning a 1d cubic interpolation of the normalised amplitude of the template versus time, for the high and low gain channels.
+        """
         if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
                 normalization = np.max(self.amplitude_HG)
         else:
@@ -749,6 +874,13 @@ class NormalizedPulseTemplate:
                 
 
     def _interpolate_std(self):
+        """
+        Creates a normalised interpolation of the error on the pulse template from a discrete and normalised input.
+
+        Return
+        ----------
+        A dictionnary containning a 1d cubic interpolation of the error on the normalised amplitude of the template versus time, for the high and low gain channels.
+        """
         return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
                        bounds_error=False, fill_value=np.inf, assume_sorted=True),
                 "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
@@ -818,6 +950,9 @@ class NormalizedPulseTemplate:
         return axes
     """
     def compute_time_of_max(self):
+        """
+
+        """
         t_max = (self.time[np.argmax(self.amplitude_HG)] +
                  self.time[np.argmax(self.amplitude_LG)])/2
         return t_max
