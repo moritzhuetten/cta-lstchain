@@ -486,12 +486,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                     lat / width) ** 2) < self.sigma_space ** 2
 
         v = self.start_parameters['v']
-        t_start = self.start_parameters['t_cm']
-                  - (np.abs(v) * length / 2 * self.sigma_time)
-                  - self.time_before_shower
-        t_end = self.start_parameters['t_cm']
-                  + (np.abs(v) * length / 2 * self.sigma_time)
-                  + self.time_after_shower
+        t_start = (self.start_parameters['t_cm']
+                   - (np.abs(v) * length / 2 * self.sigma_time)
+                   - self.time_before_shower)
+        t_end = (self.start_parameters['t_cm']
+                 + (np.abs(v) * length / 2 * self.sigma_time)
+                 + self.time_after_shower)
 
         mask_time = (self.times < t_end) * (self.times > t_start)
 
@@ -567,10 +567,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         for elt in mu:
             if elt < 120:
                 kmin[it] = 0.66 * (elt-20)
-                kmax[it]=1.34*(elt-20)+45
+                kmax[it] = 1.34 * (elt-20) + 45
             else:
                 kmin[it] = 0.904 * elt - 42.8
-                kmax[it]=1.096*elt+47.8
+                kmax[it] = 1.096 * elt + 47.8
             it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
@@ -596,6 +596,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
         # print(log_poisson)
+
+        # TODO should is_high_gain be used here?
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                self.template(t, gain='LG')))[..., None]
 
