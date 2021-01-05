@@ -574,12 +574,11 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
-        if len(kmin)==0 or len(kmax)==0:
+        mask = (kmax <= len(self.log_k))
+        if len(kmin[mask])==0 or len(kmax[mask])==0:
             kmin,kmax=0,len(self.log_k)
         else:
-            kmin,kmax = min(kmin.astype(int)),max(kmax.astype(int))
-        if kmax > len(self.log_k):
-            kmax = len(self.log_k)
+            kmin,kmax = min(kmin[mask].astype(int)),max(kmax[mask].astype(int))
         
         # log_mu[~mask] = -np.inf
         log_k = self.log_k
@@ -597,7 +596,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
         # print(log_poisson)
 
-        # TODO should is_high_gain be used here?
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                self.template(t, gain='LG')))[..., None]
 
@@ -624,15 +622,52 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         # sigma_n = np.expand_dims(self.sigma_n.T, axis=1)
 
+        if np.any(~mask):
+            mu_hat_LG = (mu[~mask] / (1-self.crosstalk_factor[~mask]))
+                        * (self.gain[~mask][..., None] * self.template[~mask](t, gain='LG'))
+            mu_hat_HG = (mu[~mask] / (1-self.crosstalk_factor[~mask]))
+                        * (self.gain[~mask][..., None] * self.template[~mask](t, gain='HG'))
+            mu_hat =  (mu_hat_HG.T * self.is_high_gain[~mask]) + mu_hat_LG.T * (~self.is_high_gain[~mask])
+            mu_hat = mu_hat.T
+
+            sigma_hat_LG = (mu[~mask] / np.power(1-self.crosstalk_factor[~mask],3))
+                           *((self.gain[~mask][..., None] * self.template[~mask](t, gain='LG')) ** 2
+            sigma_hat_HG = (mu[~mask] / np.power(1-self.crosstalk_factor[~mask],3))
+                           *((self.gain[~mask][..., None] * self.template[~mask](t, gain='HG')) ** 2
+            sigma_hat = (sigma_hat_HG.T * self.is_high_gain[~mask]) + sigma_hat_LG.T * (~self.is_high_gain[~mask])
+            sigma_hat = sigma_hat.T
+            sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
+
+            log_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
+
+
         log_gauss = log_gaussian(x[..., None], mean, sigma_n)
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
         log_pdf = log_poisson + log_gauss
         pdf = np.sum(np.exp(log_pdf), axis=-1)
 
+        log_pdf2 = 0
+        if np.any(~mask):
+            log_pdf = np.log(pdf)
+            logging.debug("Gaussian approx %s", log_pdf_HL)
+            logging.debug("Poisson sum %s", log_pdf[~mask])
+            logging.debug("diff %s", log_pdf_HL-log_pdf[~mask])
+            pdf2 = pdf[mask]
+            mask = (pdf2 <= 0)
+            pdf2 = pdf2[~mask]
+            n_points_LL = pdf2.size
+            n_points_HL = log_pdf_HL.size()
+            log_pdf2 = ((np.log(pdf2).sum() + log_pdf_HL.sum())
+                      / (n_points_LL + n_points_HL)
+
+
         mask = (pdf <= 0)
         pdf = pdf[~mask]
         n_points = pdf.size
         log_pdf = np.log(pdf).sum() / n_points
+
+        logging.debug("Final pdf %s", log_pdf)
+        logging.debug("Final pdf with Gaussian approx %s", log_pdf2)
 
         return log_pdf
 
