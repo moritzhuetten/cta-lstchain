@@ -585,7 +585,10 @@ def r0_to_dl1(
                            and dl1_filled['n_pixels'] < 1000):
                             is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
-                            if not is_saturated: #reject computationnally expensive events which would be poorly estimate with the selected value of n_peak TODO : improve to not reject events
+                            if not is_saturated:
+                                # rejects computationnally expensive events which would
+                                # be poorly estimated with the selected value of n_peak
+                                # TODO : improve to not reject events
                                 dl1_filled.lhfit_call_status = "Not processed : Error in function"
                                 dl1_filled = get_dl1_lh_fit(event,
                                                             subarray,
@@ -600,7 +603,8 @@ def r0_to_dl1(
                             else:
                                 dl1_filled.lhfit_call_status = "Not processed : Saturated"
                         else:
-                            dl1_filled.lhfit_call_status = "Not processed : n_pixel = "+str(dl1_filled['n_pixels'])
+                            dl1_filled.lhfit_call_status = ("Not processed : n_pixel = "
+                                                            + str(dl1_filled['n_pixels']))
                     else:
                        dl1_filled.lhfit_call_status = "Not active"
                 except HillasParameterizationError:
