@@ -606,11 +606,12 @@ def r0_to_dl1(
                                                                 custom_config=config,
                                                                 use_main_island=True)
                                     dl1_filled.lhfit_call_status = "Processed"
-                                except HillasParameterizationError:
+                                except Exception as err:
                                     dl1_filled.lhfit_call_status = "Not processed : Error in function"
-                                    logging.exception(
-                                        'HillasParameterizationError in get_dl1_lh_fit()'
-                                    )
+                                    logging.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                                    logging.exception(err.__class__)
+                                    logging.exception(err)
+                                    raise
                             else:
                                 dl1_filled.lhfit_call_status = "Not processed : Saturated"
                         else:
@@ -618,9 +619,6 @@ def r0_to_dl1(
                                                             + str(dl1_filled['n_pixels']))
                     else:
                         dl1_filled.lhfit_call_status = "Not active"
-                except HillasParameterizationError:
-                    logging.exception(
-                        'HillasParameterizationError in get_dl1()'
                     )
 
                 if not is_simu:
