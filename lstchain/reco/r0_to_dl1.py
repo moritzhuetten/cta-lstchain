@@ -72,7 +72,7 @@ cleaning_method = tailcuts_clean
 
 
 
-geom = CameraGeometry.from_name('LSTCam-003') #TODO check if global variable needed and camera type hard coded
+geom = CameraGeometry.from_name('LSTCam-003')  # TODO check if global variable needed and camera type hard coded
 
 
 def get_dl1(
@@ -187,8 +187,8 @@ def get_dl1_lh_fit(
     image,
     is_simu,
     custom_config={},
-    geometry=geom, #TODO check why default value, check why the global variable is still used in the function
-    use_main_island=True,):
+    geometry=geom,  # TODO check why default value, check why the global variable is still used in the function
+    use_main_island=True):
     """
     Return a DL1ParametersContainer of extracted features from a calibrated event.
     The features are extracted by maximizing an image likelihood function over pixels ands time samples.
@@ -233,7 +233,7 @@ def get_dl1_lh_fit(
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
 
-    # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion 
+    # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion
     foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
     width = foclen*np.tan(np.deg2rad(dl1_container.width))
     length = foclen*np.tan(np.deg2rad(dl1_container.length))
@@ -264,12 +264,12 @@ def get_dl1_lh_fit(
 
     start_parameters = {'x_cm': dl1_container.x.to(u.m).value,
                         'y_cm': dl1_container.y.to(u.m).value,
-                   'charge': dl1_container.intensity,
-                   't_cm': dl1_container.intercept - normalized_pulse_template.compute_time_of_max(),
-                   'v': np.abs(v),
-                   'psi': psi,
-                   'width': dl1_container.width.to(u.m).value,
-                   'length': dl1_container.length.to(u.m).value}
+                        'charge': dl1_container.intensity,
+                        't_cm': dl1_container.intercept - normalized_pulse_template.compute_time_of_max(),
+                        'v': np.abs(v),
+                        'psi': psi,
+                        'width': dl1_container.width.to(u.m).value,
+                        'length': dl1_container.length.to(u.m).value}
 
     if start_parameters['width'] <= 0.0:
         start_parameters['width'] = 0.00001
@@ -285,34 +285,34 @@ def get_dl1_lh_fit(
     v_min, v_max = 0,  t_max / d_min
     r_max = np.sqrt(geom.pix_x**2 + geom.pix_y**2).to(u.m).value.max()
 
-    bound_parameters={'x_cm': (geom.pix_x.to(u.m).value.min(), geom.pix_x.to(u.m).value.max()),
-                      'y_cm': (geom.pix_y.to(u.m).value.min(), geom.pix_y.to(u.m).value.max()),
-                   'charge': (dl1_container.intensity * 0.01, dl1_container.intensity * 10),
-                   't_cm': (-10, t_max + 10),
-                   'v': (v_min, v_max),
-                   'psi': (-np.pi, np.pi),
-                   'width': (0.00001, r_max),
-                   'length': (0.00001, r_max), }
+    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(), geom.pix_x.to(u.m).value.max()),
+                        'y_cm': (geom.pix_y.to(u.m).value.min(), geom.pix_y.to(u.m).value.max()),
+                        'charge': (dl1_container.intensity * 0.01, dl1_container.intensity * 10),
+                        't_cm': (-10, t_max + 10),
+                        'v': (v_min, v_max),
+                        'psi': (-np.pi, np.pi),
+                        'width': (0.00001, r_max),
+                        'length': (0.00001, r_max), }
 
     try:
 
         fitter = TimeWaveformFitter(waveform=waveform,
-                                image=image,
-                                error=error,
-                                n_peaks=lh_fit_config['n_peaks'],
-                                sigma_s=sigma_s,
-                                geometry=geometry, dt=1,
-                                n_samples=n_samples,
-                                template=normalized_pulse_template,
-                                gain=gain, is_high_gain=mask_high,
-                                baseline=baseline, crosstalk=crosstalk,
-                                sigma_space=lh_fit_config['sigma_space'],
-                                sigma_time=lh_fit_config['sigma_time'],
-                                time_before_shower=lh_fit_config['time_before_shower'],
-                                time_after_shower=lh_fit_config['time_after_shower'],
-                                start_parameters=start_parameters,
-                                bound_parameters=bound_parameters,
-                                )
+                                    image=image,
+                                    error=error,
+                                    n_peaks=lh_fit_config['n_peaks'],
+                                    sigma_s=sigma_s,
+                                    geometry=geometry, dt=1,
+                                    n_samples=n_samples,
+                                    template=normalized_pulse_template,
+                                    gain=gain, is_high_gain=mask_high,
+                                    baseline=baseline, crosstalk=crosstalk,
+                                    sigma_space=lh_fit_config['sigma_space'],
+                                    sigma_time=lh_fit_config['sigma_time'],
+                                    time_before_shower=lh_fit_config['time_before_shower'],
+                                    time_after_shower=lh_fit_config['time_after_shower'],
+                                    start_parameters=start_parameters,
+                                    bound_parameters=bound_parameters,
+                                    )
         # fitter.fill_event(waveform, np.ones(waveform.shape))
 
         fitter.predict(dl1_container, verbose=lh_fit_config['verbose'], ncall=lh_fit_config['ncall'])
@@ -344,6 +344,7 @@ def get_dl1_lh_fit(
         print('Could not fit : ', e)
         return None
     return dl1_container
+
 
 def r0_to_dl1(
     input_filename=get_dataset_path('gamma_test_large.simtel.gz'),
@@ -574,10 +575,15 @@ def r0_to_dl1(
 
                 try:
                     dl1_filled = get_dl1(event,
-                                          subarray, telescope_id,
-                                          dl1_container=dl1_container,
-                                          custom_config=config,
-                                          use_main_island=True)
+                                         subarray, telescope_id,
+                                         dl1_container=dl1_container,
+                                         custom_config=config,
+                                         use_main_island=True)
+                except HillasParameterizationError:
+                    logging.exception(
+                        'HillasParameterizationError in get_dl1()'
+                    )
+
                     image = event.dl1.tel[telescope_id].image
 
                     if ('lh_fit_config' in config.keys()):
@@ -589,24 +595,29 @@ def r0_to_dl1(
                                 # rejects computationnally expensive events which would
                                 # be poorly estimated with the selected value of n_peak
                                 # TODO : improve to not reject events
-                                dl1_filled.lhfit_call_status = "Not processed : Error in function"
-                                dl1_filled = get_dl1_lh_fit(event,
-                                                            subarray,
-                                                            telescope_id,
-                                                            image=image,
-                                                            is_simu=is_simu,
-                                                            normalized_pulse_template=pulse_template,
-                                                            dl1_container=dl1_filled,
-                                                            custom_config=config,
-                                                            use_main_island=True)
-                                dl1_filled.lhfit_call_status = "Processed"
+                                try:
+                                    dl1_filled = get_dl1_lh_fit(event,
+                                                                subarray,
+                                                                telescope_id,
+                                                                image=image,
+                                                                is_simu=is_simu,
+                                                                normalized_pulse_template=pulse_template,
+                                                                dl1_container=dl1_filled,
+                                                                custom_config=config,
+                                                                use_main_island=True)
+                                    dl1_filled.lhfit_call_status = "Processed"
+                                except HillasParameterizationError:
+                                    dl1_filled.lhfit_call_status = "Not processed : Error in function"
+                                    logging.exception(
+                                        'HillasParameterizationError in get_dl1_lh_fit()'
+                                    )
                             else:
                                 dl1_filled.lhfit_call_status = "Not processed : Saturated"
                         else:
                             dl1_filled.lhfit_call_status = ("Not processed : n_pixel = "
                                                             + str(dl1_filled['n_pixels']))
                     else:
-                       dl1_filled.lhfit_call_status = "Not active"
+                        dl1_filled.lhfit_call_status = "Not active"
                 except HillasParameterizationError:
                     logging.exception(
                         'HillasParameterizationError in get_dl1()'
