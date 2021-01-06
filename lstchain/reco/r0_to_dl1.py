@@ -620,7 +620,6 @@ def r0_to_dl1(
                                                             + str(dl1_filled['n_pixels']))
                     else:
                         dl1_filled.lhfit_call_status = "Not active"
-                    )
 
                 if not is_simu:
                     dl1_container.ucts_time = 0
