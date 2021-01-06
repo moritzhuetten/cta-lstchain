@@ -59,6 +59,7 @@ from ..paths import parse_r0_filename, run_to_dl1_filename, r0_to_dl1_filename
 from ..io.io import dl1_params_lstcam_key
 
 logger = logging.getLogger(__name__)
+logger.setLevel(DEBUG)
 
 
 __all__ = [
@@ -580,7 +581,7 @@ def r0_to_dl1(
                                          custom_config=config,
                                          use_main_island=True)
                 except HillasParameterizationError:
-                    logging.exception(
+                    logger.exception(
                         'HillasParameterizationError in get_dl1()'
                     )
 
@@ -608,9 +609,9 @@ def r0_to_dl1(
                                     dl1_filled.lhfit_call_status = "Processed"
                                 except Exception as err:
                                     dl1_filled.lhfit_call_status = "Not processed : Error in function"
-                                    logging.exception("Unexpected error encountered in : get_dl1_lh_fit()")
-                                    logging.exception(err.__class__)
-                                    logging.exception(err)
+                                    logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                                    logger.exception(err.__class__)
+                                    logger.exception(err)
                                     raise
                             else:
                                 dl1_filled.lhfit_call_status = "Not processed : Saturated"

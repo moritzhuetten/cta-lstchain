@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 import inspect
+import logging
 
 from iminuit import Minuit
 from scipy.optimize import minimize
@@ -14,6 +15,8 @@ from lstchain.io.lstcontainers import DL1ParametersContainer
 from lstchain.image.pdf import log_gaussian, log_gaussian2d
 from lstchain.visualization.camera import display_array_camera
 
+logger = logging.getLogger(__name__)
+logger.setLevel(DEBUG)
 
 class DL0Fitter(ABC):
     """
@@ -502,7 +505,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             Compute quantities used at each iteration of the fitting procedure.
         """
         #May need rework after accelaration addition
-        photoelectron_peak = np.arange(n_peaks, dtype=np.int)
+        photoelectron_peak = np.arange(5*n_peaks, dtype=np.int)  # the 5* is more testing only
         self.photo_peaks = photoelectron_peak
         photoelectron_peak = photoelectron_peak[..., None]
         mask = (self.photo_peaks == 0)
@@ -544,10 +547,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         t = self.times[..., np.newaxis] - t
         t = t.T
 
-        ## mu = mu * self.pix_area
-
-        # mu = mu[..., None] * self.template(t)
-        # mask = (mu > 0)
         log_mu = log_gaussian2d(size=charge * self.pix_area,
                                 x=self.pix_x,
                                 y=self.pix_y,
@@ -574,27 +573,30 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
-        mask = (kmax <= len(self.log_k))
+        mask = (kmax <= len(self.log_k)/5)  # /5 for testing only
         if len(kmin[mask])==0 or len(kmax[mask])==0:
             kmin,kmax=0,len(self.log_k)
         else:
-            kmin,kmax = min(kmin[mask].astype(int)),max(kmax[mask].astype(int))
+            #kmin,kmax = min(kmin[mask].astype(int)),max(kmax[mask].astype(int))
+            kmin,kmax = min(kmin.astype(int)),max(kmax.astype(int))
+
+        if kmax > len(self.log_k):
+            kmax = len(self.log_k)
+            logger.debug("kmax forced to \%s", kmax)
+            # Only usefull to compare the sum with the Gaussian approx.
+            # Actual implementation should use n_peak as length and
+            # compute only the gaussian approx for higher kmax
         
-        # log_mu[~mask] = -np.inf
         log_k = self.log_k
 
         self.photo_peaks = np.arange(kmin, kmax, dtype=np.int)
         self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
         x = mu + self.crosstalk_factor
-        # x = np.rollaxis(x, 0, 3)
         log_x = np.log(x)
-        # mask = x > 0
-        # log_x[~mask] = -np.inf
 
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
-        # print(log_poisson)
 
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                self.template(t, gain='LG')))[..., None]
@@ -620,7 +622,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
 
-        # sigma_n = np.expand_dims(self.sigma_n.T, axis=1)
 
         if np.any(~mask):
             mu_hat_LG = (mu[~mask] / (1-self.crosstalk_factor[~mask]))
@@ -649,16 +650,16 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         log_pdf2 = 0
         if np.any(~mask):
             log_pdf = np.log(pdf)
-            logging.debug("Gaussian approx %s", log_pdf_HL)
-            logging.debug("Poisson sum %s", log_pdf[~mask])
-            logging.debug("diff %s", log_pdf_HL-log_pdf[~mask])
+            logger.debug("Gaussian approx %s", log_pdf_HL)
+            logger.debug("Poisson sum %s", log_pdf[~mask])
+            logger.debug("diff %s", log_pdf_HL-log_pdf[~mask])
             pdf2 = pdf[mask]
             mask = (pdf2 <= 0)
             pdf2 = pdf2[~mask]
             n_points_LL = pdf2.size
             n_points_HL = log_pdf_HL.size()
-            log_pdf2 = ((np.log(pdf2).sum() + log_pdf_HL.sum())
-                      / (n_points_LL + n_points_HL)
+            log_pdf2 = (np.log(pdf2).sum() + log_pdf_HL.sum())
+                       / (n_points_LL + n_points_HL)
 
 
         mask = (pdf <= 0)
@@ -666,8 +667,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         n_points = pdf.size
         log_pdf = np.log(pdf).sum() / n_points
 
-        logging.debug("Final pdf %s", log_pdf)
-        logging.debug("Final pdf with Gaussian approx %s", log_pdf2)
+        logger.debug("Final pdf %s", log_pdf)
+        logger.debug("Final pdf with Gaussian approx %s", log_pdf2)
 
         return log_pdf
 
