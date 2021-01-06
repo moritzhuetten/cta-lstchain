@@ -59,7 +59,6 @@ from ..paths import parse_r0_filename, run_to_dl1_filename, r0_to_dl1_filename
 from ..io.io import dl1_params_lstcam_key
 
 logger = logging.getLogger(__name__)
-logger.setLevel(DEBUG)
 
 
 __all__ = [
