@@ -16,8 +16,8 @@ from lstchain.image.pdf import log_gaussian, log_gaussian2d
 from lstchain.visualization.camera import display_array_camera
 
 logger = logging.getLogger(__name__)
-logger.setLevel(DEBUG)
 
+range_ext = 5
 
 class DL0Fitter(ABC):
     """
@@ -508,7 +508,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             Compute quantities used at each iteration of the fitting procedure.
         """
         # May need rework after accelaration addition
-        photoelectron_peak = np.arange(5*n_peaks, dtype=np.int)  # the 5* is more testing only
+        photoelectron_peak = np.arange(range_ext*n_peaks, dtype=np.int)
+        # the range_ext* is for testing only, extends the range available for the sum in the likelihood
         self.photo_peaks = photoelectron_peak
         photoelectron_peak = photoelectron_peak[..., None]
         mask = (self.photo_peaks == 0)
@@ -576,7 +577,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
-        mask = (kmax <= len(self.log_k) / 5)  # /5 for testing only
+        mask = (kmax <= len(self.log_k) / range_ext)
+        # /range_ext for testing only
+        # compensate the extension of len(self.log_k) back to n_peak
         if len(kmin[mask]) == 0 or len(kmax[mask]) == 0:
             kmin, kmax = 0, len(self.log_k)
         else:
@@ -585,7 +588,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         if kmax > len(self.log_k):
             kmax = len(self.log_k)
-            logger.debug("kmax forced to \%s", kmax)
+            logger.debug("kmax forced to %s", kmax)
             # Only usefull to compare the sum with the Gaussian approx.
             # Actual implementation should use n_peak as length and
             # compute only the gaussian approx for higher kmax
@@ -636,10 +639,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
             sigma_hat_LG = ((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
                             * (self.gain[~mask][..., None]
-                                * self.template[~mask](t, gain='LG')) ** 2)
+                               * self.template[~mask](t, gain='LG')) ** 2)
             sigma_hat_HG = ((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
                             * (self.gain[~mask][..., None]
-                                * self.template[~mask](t, gain='HG')) ** 2)
+                               * self.template[~mask](t, gain='HG')) ** 2)
             sigma_hat = (sigma_hat_HG.T * self.is_high_gain[~mask]) + sigma_hat_LG.T * (~self.is_high_gain[~mask])
             sigma_hat = sigma_hat.T
             sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
