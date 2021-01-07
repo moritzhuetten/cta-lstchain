@@ -72,7 +72,8 @@ cleaning_method = tailcuts_clean
 
 
 
-geom = CameraGeometry.from_name('LSTCam-003')  # TODO check if global variable needed and camera type hard coded
+geom = CameraGeometry.from_name('LSTCam-003')
+# TODO check if global variable needed and camera type hard coded
 
 
 def get_dl1(
@@ -190,10 +191,14 @@ def get_dl1_lh_fit(
     geometry=geom,  # TODO check why default value, check why the global variable is still used in the function
     use_main_island=True):
     """
-    Return a DL1ParametersContainer of extracted features from a calibrated event.
-    The features are extracted by maximizing an image likelihood function over pixels ands time samples.
-    The model consider a 2D Gaussian distribution of the charge and a linear temporal model. The spatio-yemporal image model is then compared to the signal vs time in each pixel while taking into account the response of the instrument from calibration.
-    The DL1ParametersContainer needs to contain a first features estimation as seed for the likelihood fit.
+    Return a DL1ParametersContainer of extracted features from a calibrated
+    event. The features are extracted by maximizing an image likelihood function
+    over pixels ands time samples. The model consider a 2D Gaussian distribution
+    of the charge and a linear temporal model. The spatio-temporal image model
+    is then compared to the signal vs time in each pixel while taking into
+    account the response of the instrument from calibration.
+    The DL1ParametersContainer needs to contain a first features estimation
+    as seed for the likelihood fit.
 
     Parameters
     ----------

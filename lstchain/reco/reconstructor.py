@@ -27,9 +27,9 @@ class DL0Fitter(ABC):
     """
 
 
-    def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
-                 template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
-                 sigma_space=4, sigma_time=3,
+    def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples,
+                 start_parameters, template, gain=1, is_high_gain=0, baseline=0,
+                 crosstalk=0, sigma_space=4, sigma_time=3,
                  time_before_shower=10, time_after_shower=50,
                  bound_parameters=None):
         """
@@ -66,8 +66,9 @@ class DL0Fitter(ABC):
             crosstalk: float
                 Probability of a photo-electron to interact twice in a pixel
             sigma_space: float
-                Size of the region over which the likelihood needs to be estimated
-                in number of standard deviation away from the center of the spatial model
+                Size of the region over which the likelihood needs to be
+                estimated in number of standard deviation away from the center
+                of the spatial model
             sigma_time: float
                 Time window around the peak of signal over which to compute
                 the likelihood in number of temporal width of the signal
@@ -198,7 +199,8 @@ class DL0Fitter(ABC):
         ----------
         verbose: boolean
         minuit: boolean
-            If True, minuit is used to perform the fit. Else, scipy optimize is used instead
+            If True, minuit is used to perform the fit.
+            Else, scipy optimize is used instead
         ncall: int
             Maximum number of call for migrad
         """
@@ -222,11 +224,15 @@ class DL0Fitter(ABC):
             options = {**start_params, **bounds_params, **fixed_params}
             f = lambda *args: -self.log_likelihood(*args)
             print_level = 2 if verbose else 0
-            m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
+            m = Minuit(f, print_level=print_level,
+                       forced_parameters=self.names_parameters, errordef=0.5,
+                       **options)
             m.migrad(ncall=ncall)
             self.end_parameters = dict(m.values)
             options = {**self.end_parameters, **bounds_params, **fixed_params}
-            m = Minuit(f, print_level=print_level, forced_parameters=self.names_parameters, errordef=0.5, **options)
+            m = Minuit(f, print_level=print_level,
+                       forced_parameters=self.names_parameters, errordef=0.5,
+                       **options)
             m.migrad(ncall=ncall)
             try:
                 self.error_parameters = dict(m.errors)
@@ -344,7 +350,8 @@ class DL0Fitter(ABC):
             raise NameError('Parameter : {} not in existing parameters :'
                             '{}'.format(key, self.names_parameters))
 
-        x = np.linspace(self.bound_parameters[key][0], self.bound_parameters[key][1], num=size)
+        x = np.linspace(self.bound_parameters[key][0],
+                        self.bound_parameters[key][1], num=size)
         if axes is None:
             fig = plt.figure()
             axes = fig.add_subplot(111)
@@ -426,8 +433,10 @@ class DL0Fitter(ABC):
 
         key_x = parameter_1
         key_y = parameter_2
-        x = np.linspace(self.bound_parameters[key_x], self.bound_parameters[key_x], num=size[0])
-        y = np.linspace(self.bound_parameters[key_y], self.bound_parameters[key_y], num=size[1])
+        x = np.linspace(self.bound_parameters[key_x],
+                        self.bound_parameters[key_x], num=size[0])
+        y = np.linspace(self.bound_parameters[key_y],
+                        self.bound_parameters[key_y], num=size[1])
         dx = x[1] - x[0]
         dy = y[1] - y[0]
 
@@ -476,9 +485,10 @@ class DL0Fitter(ABC):
         y_label = self.labels[key_y] if y_label is None else y_label
 
         im = axes.imshow(-llh.T,  origin='lower', extent=[x.min() - dx/2.,
-                                                     x.max() - dx/2,
-                                                     y.min() - dy/2,
-                                                     y.max() - dy/2], aspect='auto')
+                                                          x.max() - dx/2.,
+                                                          y.min() - dy/2.,
+                                                          y.max() - dy/2.],
+                         aspect='auto')
 
         axes.scatter(self.end_parameters[key_x], self.end_parameters[key_y],
                      marker='x', color='w', label='Maximum Likelihood')
@@ -532,20 +542,25 @@ class DL0Fitter(ABC):
 
 class TimeWaveformFitter(DL0Fitter, Reconstructor):
     """
-        Specific class for the extraction of DL1 parameters from R1 events using a log likelihood minimisation method by fitting the spatial and temporal dependance of signal in the camera taking into account the calibrated response of the pixels.
+        Specific class for the extraction of DL1 parameters from R1 events using
+        a log likelihood minimisation method by fitting the spatial and temporal
+        dependance of signal in the camera taking into account the calibrated
+        response of the pixels.
     """
 
 
     def __init__(self, *args, image, n_peaks=100, **kwargs):
         """
-            Initialise the data and parameters used for the fitting, including method specific objects.
+            Initialise the data and parameters used for the fitting, including
+            method specific objects.
 
             Parameters:
             *args, **kwargs: Argument for the DL0Fitter initialisation
             image: ADDTYPE
                 Image of the event in the camera
             n_peak: int
-                Maximum upper bound of the sum over possible detected photo-electron value in the likelihood computation.
+                Maximum upper bound of the sum over possible detected
+                photo-electron value in the likelihood computation.
             -----------
         """
         self.image = image
@@ -562,11 +577,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             to extend the selected region. The temporal selection takes a time
             window centered on the seed time of center of mass and of duration
             equal to the time of propagation of the signal along the length
-            of the elipsis times a factor sigma_time. An additionnal fixed 
+            of the elipsis times a factor sigma_time. An additionnal fixed
             duration is also added before and after this time window through
             the time_before_shower and time_after_shower arguments.
         """
-
         x_cm = self.start_parameters['x_cm']
         y_cm = self.start_parameters['y_cm']
         width = self.start_parameters['width']
@@ -599,19 +613,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
             Compute quantities used at each iteration of the fitting procedure.
         """
-        # May need rework after accelaration addition
         photoelectron_peak = np.arange(range_ext*n_peaks, dtype=np.int)
         # the range_ext* is for testing only, extends the range available for the sum in the likelihood
-        self.photo_peaks = photoelectron_peak
-        photoelectron_peak = photoelectron_peak[..., None]
-        mask = (self.photo_peaks == 0)
-        self.photo_peaks[mask] = 1
-        log_k = np.log(self.photo_peaks)
-        log_k = np.cumsum(log_k)
-        self.photo_peaks[mask] = 0
-        self.log_k = log_k
-        self.crosstalk_factor = photoelectron_peak * self.crosstalk
-        self.crosstalk_factor = self.crosstalk_factor
+        photoelectron_peak[0] = 1
+        log_factorial = np.log(photoelectron_peak)
+        log_factorial = np.cumsum(log_factorial)
+        self.log_factorial = log_factorial
 
 
     def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
@@ -659,43 +666,41 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         kmin = np.zeros(len(mu))
         kmax = np.zeros(len(mu))
         it = 0
-        for elt in mu:
+        for it, elt in enumerate(mu):
             if elt < 120:
                 kmin[it] = 0.66 * (elt-20)
                 kmax[it] = 1.34 * (elt-20) + 45
             else:
                 kmin[it] = 0.904 * elt - 42.8
                 kmax[it] = 1.096 * elt + 47.8
-            it = it + 1
         kmin[kmin<0] = 0
         kmax = np.ceil(kmax)
-        mask = (kmax <= len(self.log_k) / range_ext)
+        mask = (kmax <= len(self.log_factorial) / range_ext)
         # /range_ext for testing only
-        # compensate the extension of len(self.log_k) back to n_peak
+        # compensate the extension of len(self.log_factorial) back to n_peak
         if len(kmin[mask]) == 0 or len(kmax[mask]) == 0:
-            kmin, kmax = 0, len(self.log_k)
+            kmin, kmax = 0, len(self.log_factorial)
         else:
             #kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
             kmin, kmax = min(kmin.astype(int)), max(kmax.astype(int))
 
-        if kmax > len(self.log_k):
-            kmax = len(self.log_k)
+        if kmax > len(self.log_factorial):
+            kmax = len(self.log_factorial)
             logger.debug("kmax forced to %s", kmax)
             # Only usefull to compare the sum with the Gaussian approx.
             # Actual implementation should use n_peak as length and
             # compute only the gaussian approx for higher kmax
 
-        log_k = self.log_k
-
         self.photo_peaks = np.arange(kmin, kmax, dtype=np.int)
         self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
+        # Compute the poissonian term in the pixel likelihood
         x = mu + self.crosstalk_factor
         log_x = np.log(x)
-
         log_x = ((self.photo_peaks - 1) * log_x.T).T
-        log_poisson = log_mu - log_k[kmin:kmax][..., None] - x + log_x
+        log_poisson = log_mu - self.log_factorial[kmin:kmax][..., None] - x + log_x
 
+        # Compute the Gaussian term in the pixel likelihood
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                                        self.template(t, gain='LG')))[..., None]
 
@@ -706,7 +711,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         mean = (mean_HG.T * self.is_high_gain) + mean_LG.T * (~self.is_high_gain)
         mean = mean.T
 
-        x = self.data - self.baseline[..., None]
+        signal = self.data - self.baseline[..., None]
 
         sigma_n_LG = self.photo_peaks * ((self.sigma_s[..., None] *
                                           self.template(t, gain='LG')) ** 2)[..., None]
@@ -719,6 +724,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
+
+        log_gauss = log_gaussian(signal[..., None], mean, sigma_n)
 
 
         if np.any(~mask):
@@ -739,25 +746,24 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             sigma_hat = sigma_hat.T
             sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
 
-            log_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
+            log_pixel_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
 
 
-        log_gauss = log_gaussian(x[..., None], mean, sigma_n)
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
-        log_pdf = log_poisson + log_gauss
-        pdf = np.sum(np.exp(log_pdf), axis=-1)
+        log_pixel_pdf_elt = log_poisson + log_gauss
+        pixel_pdf = np.sum(np.exp(log_pixel_pdf_elt), axis=-1)
 
         log_pdf2 = 0
         if np.any(~mask):
-            log_pdf = np.log(pdf)
-            logger.debug("Gaussian approx %s", log_pdf_HL)
-            logger.debug("Poisson sum %s", log_pdf[~mask])
-            logger.debug("diff %s", log_pdf_HL-log_pdf[~mask])
-            pdf2 = pdf[mask]
-            mask = (pdf2 <= 0)
-            pdf2 = pdf2[~mask]
-            n_points_LL = pdf2.size
-            n_points_HL = log_pdf_HL.size()
+            log_pixel_pdf = np.log(pixel_pdf)
+            logger.debug("Gaussian approx %s", log_pixel_pdf_HL)
+            logger.debug("Poisson sum %s", log_pixel_pdf[~mask])
+            logger.debug("diff %s", log_pixel_pdf_HL-log_pixel_pdf[~mask])
+            pixel_pdf_LL = pixel_pdf[mask]
+            mask = (pixel_pdf_LL <= 0)
+            pixel_pdf_LL = pixel_pdf_LL[~mask]
+            n_points_LL = pixel_pdf_noapprox_HL.size
+            n_points_HL = log_pixel_pdf_HL.size()
             log_pdf2 = ((np.log(pdf2).sum() + log_pdf_HL.sum())
                         / (n_points_LL + n_points_HL))
 
@@ -813,7 +819,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         Parameters
         ----------
         n_sigma: float
-            Multiplicative factor on the extracted width and length 
+            Multiplicative factor on the extracted width and length
             used for the displayed elipsis
         init: boolean
             If True, use the starting parameters for the elipsis
@@ -979,7 +985,7 @@ class NormalizedPulseTemplate:
     def std(self, time, amplitude=1, t_0=0, baseline=0):
         """
             Use the interpolated error on the template to access the value
-            of the pulse at time = time in gain regime = gain. 
+            of the pulse at time = time in gain regime = gain.
             Additionnally, an alternative normalisation, origin of time
             and baseline can be used.
 
