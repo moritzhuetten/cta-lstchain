@@ -26,6 +26,7 @@ class DL0Fitter(ABC):
 
     """
 
+
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples, start_parameters,
                  template, gain=1, is_high_gain=0, baseline=0, crosstalk=0,
                  sigma_space=4, sigma_time=3,
@@ -34,14 +35,15 @@ class DL0Fitter(ABC):
         """
             Initialise the data and parameters used for the fitting.
 
-            Parameters:
-            -----------
+            Parameters
+            ----------
             waveform: array
                 Calibrated signal in each pixel versus time
             error: array or None
                 Error on the waveform
             sigma_s: array
-                Standard deviation of the amplitude of the single photo-electron pluse
+                Standard deviation of the amplitude of
+                the single photo-electron pulse
             geometry:
                 Camera geometry
             dt: float
@@ -50,8 +52,10 @@ class DL0Fitter(ABC):
                 Number of time samples
             start_parameters: dictionary
                 Starting value of the image parameters for the fit
-            template: array
-                Temporal template of the response of the pixel to a photo-electron
+                Parameters are :
+                    x_cm, y_cm, charge, t_cm, v, psi, width, length
+            template: NormalizedPulseTemplate
+                Template of the response of the pixel to a photo-electron
                 Can contain two templates for high and low gain
             gain: array
                 Selected gain in each pixel
@@ -73,8 +77,9 @@ class DL0Fitter(ABC):
                 Duration after the end of the signal which is not ignored
             bound_parameters: dictionary
                 Bounds for the parameters used during the fit
+                Parameters are :
+                    x_cm, y_cm, charge, t_cm, v, psi, width, length
         """
-
         self.gain = gain
         self.is_high_gain = is_high_gain
         self.baseline = baseline
@@ -135,7 +140,6 @@ class DL0Fitter(ABC):
         filter_times = np.arange(self.n_samples)[~self.mask_time]
 
         if error is None:
-
             std = np.std(self.data[~self.mask_pixel])
             self.error = np.ones(self.data.shape) * std
 
@@ -144,13 +148,26 @@ class DL0Fitter(ABC):
         self.error = np.delete(self.error, filter_pixels, axis=0)
         self.error = np.delete(self.error, filter_times, axis=1)
 
+
     @abstractmethod
     def clean_data(self):
+    """
+        Abstract method used to select pixels and time samples used in the
+        fitting procedure.
+    """
 
-        pass
 
     def __str__(self):
+        """
+        Define the print format of DL0Fitter objects.
 
+        Returns
+        -------
+        str: string
+            Contains the starting and bound parameters used for the fit,
+            and the end results with errors and associated log-likelihood
+            in readable format.
+        """
         str = 'Start parameters :\n\t{}\n'.format(self.start_parameters)
         str += 'Bound parameters :\n\t{}\n'.format(self.bound_parameters)
         str += 'End parameters :\n\t{}\n'.format(self.end_parameters)
@@ -158,6 +175,7 @@ class DL0Fitter(ABC):
         str += 'Log-Likelihood :\t{}'.format(self.log_likelihood(**self.end_parameters))
 
         return str
+
 
     def fill_event(self, data, error=None):
         """
@@ -170,6 +188,8 @@ class DL0Fitter(ABC):
         -------
 
         """
+
+
     def fit(self, verbose=True, minuit=True, ncall=None, **kwargs):
         """
             Performs the fitting procedure.
@@ -182,27 +202,20 @@ class DL0Fitter(ABC):
         ncall: int
             Maximum number of call for migrad
         """
-
         if minuit:
-
             fixed_params = {}
             bounds_params = {}
             start_params = self.start_parameters
 
             if self.bound_parameters is not None:
-
                 for key, val in self.bound_parameters.items():
-
                     bounds_params['limit_' + key] = val
 
             for key in self.names_parameters:
-
                 if key in kwargs.keys():
-
                     fixed_params['fix_' + key] = True
 
                 else:
-
                     fixed_params['fix_' + key] = False
 
             # print(fixed_params, bounds_params, start_params)
@@ -238,9 +251,7 @@ class DL0Fitter(ABC):
             name_parameters = []
 
             for key in self.names_parameters:
-
                 if key not in fixed_params.keys():
-
                     start_parameters.append(self.start_parameters[key])
                     bounds.append(self.bound_parameters[key])
                     name_parameters.append(key)
@@ -262,50 +273,79 @@ class DL0Fitter(ABC):
                 pass
 
             if verbose:
-
                 print(result)
 
-    def pdf(self, *args, **kwargs):
 
+    def pdf(self, *args, **kwargs):
+    """Compute a probability density funtion."""
         return np.exp(self.log_pdf(*args, **kwargs))
+
 
     @abstractmethod
     def plot(self):
+    """Abstract plot method."""
 
-        pass
 
     @abstractmethod
     def compute_bounds(self):
+    """Abstract method for the computation of the bounds for the fit."""
 
-        pass
 
     @abstractmethod
     def log_pdf(self, *args, **kwargs):
+    """
+        Abstract method for the computation of the log of a probability density
+        funtion used in the fitting procedure. Needs to be overridden by the
+        relevant likelihood function.
+    """
 
-        pass
 
     def likelihood(self, *args, **kwargs):
-
+    """Compute a likelihood."""
         return np.exp(self.log_likelihood(*args, **kwargs))
 
-    def log_likelihood(self, *args, **kwargs):
 
+    def log_likelihood(self, *args, **kwargs):
+    """Compute the log-likelihood used in the fitting procedure."""
         llh = self.log_pdf(*args, **kwargs)
         return np.sum(llh)
 
+
     def plot_1dlikelihood(self, parameter_name, axes=None, size=1000,
                           x_label=None, invert=False):
+    """
+        Plot the 1D evolution of the log-likelihood for a parameter
+        when fixing the other parameters to their end value.
 
+        Parameters
+        ----------
+        parameter_name: string
+            Parameter over which the log-likelihood needs to be plotted
+        axes: matplotlib.pyplot.axis
+            Axis used to store the figure
+            If None, a new one is created
+        size: int
+            Number of points of the likelihood curve
+        x_label: string
+            Label of the x axis
+        y_label: string
+            Label of the y axis
+        invert: bool
+            If True, invert the x and y axis
+
+        Returns
+        -------
+        axes: matplotlib.pyplot.axis
+            Axis object filled with the 1D log-likelihood figure
+    """
         key = parameter_name
 
         if key not in self.names_parameters:
-
             raise NameError('Parameter : {} not in existing parameters :'
                             '{}'.format(key, self.names_parameters))
 
         x = np.linspace(self.bound_parameters[key][0], self.bound_parameters[key][1], num=size)
         if axes is None:
-
             fig = plt.figure()
             axes = fig.add_subplot(111)
 
@@ -313,7 +353,6 @@ class DL0Fitter(ABC):
         llh = np.zeros(x.shape)
 
         for i, xx in enumerate(x):
-
             params[key] = xx
             llh[i] = self.log_likelihood(**params)
 
@@ -356,8 +395,31 @@ class DL0Fitter(ABC):
         axes.legend(loc='best')
         return axes
 
+
     def plot_2dlikelihood(self, parameter_1, parameter_2=None, size=100,
                           x_label=None, y_label=None):
+    """
+        Plot the 2D evolution of the log-likelihood for a pair of parameters
+        when fixing the other parameters to their end value.
+
+        Parameters
+        ----------
+        parameter_1: string
+            First parameter over which the log-likelihood needs to be plotted
+        parameter_2: string
+            Second parameter over which the log-likelihood needs to be plotted
+        size: int
+            Number of points of the likelihood per dimension
+        x_label: string
+            Label of the x axis
+        y_label: string
+            Label of the y axis
+
+        Returns
+        -------
+        axes: matplotlib.pyplot.axis
+            Axis object filled with the 2D log-likelihood figures
+    """
 
         if isinstance(size, int):
             size = (size, size)
@@ -375,10 +437,8 @@ class DL0Fitter(ABC):
         for i, xx in enumerate(x):
             params[key_x] = xx
             for j, yy in enumerate(y):
-
                 params[key_y] = yy
                 llh[i, j] = self.log_likelihood(**params)
-
 
         fig = plt.figure()
         left, width = 0.1, 0.65
@@ -431,17 +491,38 @@ class DL0Fitter(ABC):
 
         return axes
 
+
     def plot_likelihood(self, parameter_1, parameter_2=None,
                         axes=None, size=100,
                         x_label=None, y_label=None):
+    """
+        Plot the 1D or 2D likelihood.
 
+        Parameters
+        ----------
+        parameter_1: string
+            Parameter over which the log-likelihood needs to be plotted
+        parameter_2: string
+            Second parameter over which the log-likelihood needs to be plotted
+        axes: matplotlib.pyplot.axis
+            Axis used to store the figure
+            If None, a new one is created
+        size: int
+            Number of points of the likelihood curve for each dimmension
+        x_label: string
+            Label of the x axis
+        y_label: string
+            Label of the y axis
+
+        Returns
+        -------
+        matplotlib.pyplot.axis object filled with the log-likelihood figure
+    """
         if parameter_2 is None:
-
             return self.plot_1dlikelihood(parameter_name=parameter_1,
                                           axes=axes, x_label=x_label, size=size)
 
         else:
-
             return self.plot_2dlikelihood(parameter_1,
                                           parameter_2=parameter_2,
                                           size=size,
@@ -471,9 +552,19 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         super().__init__(*args, **kwargs)
         self._initialize_pdf(n_peaks=n_peaks)
 
+
     def clean_data(self):
         """
-            Method used to select pixels and time samples used in the fitting procedure.
+            Method used to select pixels and time samples used in the
+            fitting procedure. The spatial selection takes pixels in an
+            elipsis obtained from the seed Hillas parameters extraction.
+            An additionnal factor sigma_space is added to the length and width
+            to extend the selected region. The temporal selection takes a time
+            window centered on the seed time of center of mass and of duration
+            equal to the time of propagation of the signal along the length
+            of the elipsis times a factor sigma_time. An additionnal fixed 
+            duration is also added before and after this time window through
+            the time_before_shower and time_after_shower arguments.
         """
 
         x_cm = self.start_parameters['x_cm']
@@ -503,6 +594,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return mask_pixel, mask_time
 
+
     def _initialize_pdf(self, n_peaks):
         """
             Compute quantities used at each iteration of the fitting procedure.
@@ -520,6 +612,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         self.log_k = log_k
         self.crosstalk_factor = photoelectron_peak * self.crosstalk
         self.crosstalk_factor = self.crosstalk_factor
+
 
     def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
                 length, psi, v):
@@ -542,7 +635,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         v: float
             Velocity of the evolution of the signal over the camera
         """
-
         dx = (self.pix_x - x_cm)
         dy = (self.pix_y - y_cm)
         long = dx * np.cos(psi) + dy * np.sin(psi)
@@ -680,6 +772,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return log_pdf
 
+
     def predict(self, container=DL1ParametersContainer(), **kwargs):
         """
             Call the fitting procedure and fill the results.
@@ -689,7 +782,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         container: DL1ParametersContainer
             Location to fill with updated DL1 parameters
         """
-
 
         self.fit(**kwargs)
 
@@ -708,11 +800,29 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return container
 
+
     def compute_bounds(self):
-        pass
+    """Method for the computation of the bounds for the fit."""
+
 
     def plot(self, n_sigma=3, init=False):
+        """
+            Plot the image of the event in the camera along with the extracted
+            elispis before or after the fitting procedure.
 
+        Parameters
+        ----------
+        n_sigma: float
+            Multiplicative factor on the extracted width and length 
+            used for the displayed elipsis
+        init: boolean
+            If True, use the starting parameters for the elipsis
+            If False, use the ending parameters for the elipsis
+        Returns:
+        cam_display: ctapipe.visualization.CameraDisplay
+            Camera image using matplotlib
+
+        """
         charge = self.image
         cam_display = display_array_camera(charge, geom=self.geometry,)
 
@@ -745,8 +855,23 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return cam_display
 
-    def plot_waveforms(self, axes=None):
 
+    def plot_waveforms(self, axes=None):
+    """
+        Plot the intensity of the signal in the camera as a function of time
+        and of the position projected on the main axis of the fitted elipsis.
+
+        Parameters
+        ----------
+        axes: matplotlib.pyplot.axis
+            Axis used to store the figure
+            If None, a new one is created
+
+        Returns
+        -------
+        axes: matplotlib.pyplot.axis
+            Object filled with the figure
+    """
         image = self.image[self.mask_pixel]
         n_pixels = min(15, len(image))
         pixels = np.argsort(image)[-n_pixels:]
@@ -783,20 +908,23 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         return axes
 
 
-
 class NormalizedPulseTemplate:
     """
-        Class for handling the template for the pulsed response of the pixels of the camera to a single photo-electron in high and low gain.
+        Class for handling the template for the pulsed response of the pixels
+        of the camera to a single photo-electron in high and low gain.
     """
+
 
     def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None, amplitude_LG_std=None):
         """
-            Save the pulse template and optionnal error and create an interpolation.
+            Save the pulse template and optionnal error
+            and create an interpolation.
 
         Parameters
         ----------
         amplitude_HG/LG: array
-            Amplitude of the signal produced in a pixel by a photo-electron in high gain (HG) and low gain (LG) for successive time samples
+            Amplitude of the signal produced in a pixel by a photo-electron
+            in high gain (HG) and low gain (LG) for successive time samples
         time: array
             Times of the samples
         amplitude_HG/LG_std: array
@@ -818,16 +946,20 @@ class NormalizedPulseTemplate:
         self._template = self._interpolate()
         self._template_std = self._interpolate_std()
 
+
     def __call__(self, time, gain, amplitude=1, t_0=0, baseline=0):
         """
-            Use the interpolated template to access the value of the pulse at time = time in gain regime = gain. Additionnally, an alternative normalisation, origin of time and baseline can be used.
+            Use the interpolated template to access the value of the pulse at
+            time = time in gain regime = gain. Additionnally, an alternative
+            normalisation, origin of time and baseline can be used.
 
         Parameters
         ----------
         time: float array
-            Time after the origin after which to estimate the value of the pulse
+            Time after the origin to estimate the value of the pulse
         gain: string array
-            Identifier of the gain channel used for each pixel. Either "HG" or "LG"
+            Identifier of the gain channel used for each pixel
+            Either "HG" or "LG"
         amplitude: float
             Normalisation factor to aply to the template
         t_0: float
@@ -843,28 +975,55 @@ class NormalizedPulseTemplate:
         y = amplitude * self._template[gain](time - t_0) + baseline
         return np.array(y)
 
+
     def std(self, time, amplitude=1, t_0=0, baseline=0):
         """
+            Use the interpolated error on the template to access the value
+            of the pulse at time = time in gain regime = gain. 
+            Additionnally, an alternative normalisation, origin of time
+            and baseline can be used.
 
+        Parameters
+        ----------
+        time: float array
+            Time after the origin to estimate the value of the error
+        gain: string array
+            Identifier of the gain channel used for each pixel
+            Either "HG" or "LG"
+        amplitude: float
+            Normalisation factor to aply to the error
+        t_0: float
+            Shift in the origin of time
+        baseline: float array
+            Baseline to be substracted for each pixel
+
+        Return
+        ----------
+        y: array
+            Value of the template in each pixel at the requested times
         """
         y = amplitude * self._template_std(time - t_0) + baseline
         return np.array(y)
-    """
-    def __getitem__(self, item):
-        return NormalizedPulseTemplate(amplitude=self.amplitude[item],
-                                       time=self.time)
-    """
+
+
     def save(self, filename):
         """
             Save a loaded template to a text file.
+        Parameters
+        ----------
+        filename: string
+            Location of the output text file
         """
         data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_std, self.amplitude_LG, self.amplitude_LG_std])
         np.savetxt(filename, data.T)
 
+
     @classmethod
     def load(cls, filename):
         """
-        Load a pulse template from a text file. Allows for only one gain channel and no errors, two gain channels and no errors or two gain channels with errors.
+        Load a pulse template from a text file.
+        Allows for only one gain channel and no errors,
+        two gain channels and no errors or two gain channels with errors.
 
         Parameters
         ----------
@@ -891,11 +1050,14 @@ class NormalizedPulseTemplate:
 
     def _interpolate(self):
         """
-        Creates a normalised interpolation of the pulse template from a discrete and non-normalised input. Also normalises the error.
+        Creates a normalised interpolation of the pulse template from a
+        discrete and non-normalised input. Also normalises the error.
 
         Return
         ----------
-        A dictionnary containning a 1d cubic interpolation of the normalised amplitude of the template versus time, for the high and low gain channels.
+        A dictionnary containning a 1d cubic interpolation of the normalised
+        amplitude of the template versus time,
+        for the high and low gain channels.
         """
         if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
                 normalization = np.max(self.amplitude_HG)
@@ -921,96 +1083,31 @@ class NormalizedPulseTemplate:
 
     def _interpolate_std(self):
         """
-        Creates a normalised interpolation of the error on the pulse template from a discrete and normalised input.
+        Creates a normalised interpolation of the error on the pulse template
+        from a discrete and normalised input.
 
         Return
         ----------
-        A dictionnary containning a 1d cubic interpolation of the error on the normalised amplitude of the template versus time, for the high and low gain channels.
+        A dictionnary containning a 1d cubic interpolation of the error on the
+        normalised amplitude of the template versus time,
+        for the high and low gain channels.
         """
         return {"HG" : interp1d(self.time, self.amplitude_HG_std, kind='cubic',
                        bounds_error=False, fill_value=np.inf, assume_sorted=True),
                 "LG" : interp1d(self.time, self.amplitude_LG_std, kind='cubic',
                        bounds_error=False, fill_value=np.inf, assume_sorted=True)}
 
- 
-    # commenting unused old function for now
-    """
-    def integral(self, order=1):
-        return np.trapz(y=self.amplitude**order, x=self.time)
 
-    def compute_charge_amplitude_ratio(self, integral_width, dt_sampling):
-
-        dt = self.time[1] - self.time[0]
-
-        if not dt % dt_sampling:
-            raise ValueError('Cannot use sampling rate {} for {}'.format(
-                1 / dt_sampling, dt))
-        step = int(dt_sampling / dt)
-        y = self.amplitude[::step]
-        window = np.ones(integral_width)
-        charge_to_amplitude_factor = np.convolve(y, window)
-        charge_to_amplitude_factor = np.max(charge_to_amplitude_factor)
-
-        return 1 / charge_to_amplitude_factor
-
-    def plot(self, axes=None, label='Template data-points', **kwargs):
-        if axes is None:
-            fig = plt.figure()
-            axes = fig.add_subplot(111)
-        t = np.linspace(self.time.min(), self.time.max(),
-                        num=len(self.time) * 100)
-        axes.plot(self.time, self.amplitude,
-                          label=label, **kwargs)
-        axes.set_xlabel('time [ns]')
-        axes.set_ylabel('normalised amplitude [a.u.]')
-        axes.legend(loc='best')
-        return axes
-
-    def plot_interpolation(self, axes=None, sigma=-1., color='k',
-                           label='Template interpolation', cumulative=False,
-                           **kwargs):
-        if axes is None:
-            fig = plt.figure()
-            axes = fig.add_subplot(111)
-        t = np.linspace(self.time.min(), self.time.max(),
-                        num=len(self.time) * 100)
-        mean_y = self.__call__(t)
-        std_y = self.std(t)
-        if sigma > 0:
-            axes.fill_between(
-                t,
-                mean_y + sigma * std_y,
-                mean_y - sigma * std_y,
-                alpha=0.3, color=color, label=label
-            )
-            axes.plot(t, mean_y, '-', color=color, **kwargs)
-        else:
-            axes.plot(t, mean_y, '-', label=label, color=color, **kwargs)
-        if cumulative:
-            integ = np.cumsum(mean_y)
-            axes.plot(t, 1 - integ/integ[-1], '--', color=color,
-                      label=label + ' integrated', **kwargs)
-        axes.legend(loc='best')
-        axes.set_xlabel('time [ns]')
-        axes.set_ylabel('normalised amplitude [a.u.]')
-        return axes
-    """
     def compute_time_of_max(self):
         """
-
+            Find the average of the times of maximum
+            of the high and low gain pulse shapes.
+        Returns
+        -------
+        t_max: float
+            Time of maximum of the pulse shapes (averaged)
         """
         t_max = (self.time[np.argmax(self.amplitude_HG)] +
                  self.time[np.argmax(self.amplitude_LG)])/2
         return t_max
-        # old method below, more precise possible for one gain
-        """
-        dt = np.diff(self.time)[0]
-        index_max = np.argmax(self.amplitude)
-        t = np.linspace(self.time[index_max] - dt,
-                        self.time[index_max] + dt,
-                        num=100)
-        t_max = self(t).argmax()
-        t_max = t[t_max]
-        return t_max
-        """
 

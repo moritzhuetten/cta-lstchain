@@ -216,7 +216,6 @@ def get_dl1_lh_fit(
     -------
     DL1ParametersContainer
     """
-
     lh_fit_config = custom_config['lh_fit_config']
     telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
     if is_simu:
@@ -295,7 +294,6 @@ def get_dl1_lh_fit(
                         'length': (0.00001, r_max), }
 
     try:
-
         fitter = TimeWaveformFitter(waveform=waveform,
                                     image=image,
                                     error=error,
@@ -313,7 +311,6 @@ def get_dl1_lh_fit(
                                     start_parameters=start_parameters,
                                     bound_parameters=bound_parameters,
                                     )
-        # fitter.fill_event(waveform, np.ones(waveform.shape))
 
         fitter.predict(dl1_container, verbose=lh_fit_config['verbose'], ncall=lh_fit_config['ncall'])
 
