@@ -10,7 +10,9 @@ __all__ = [
     'overlay_hillas_major_axis',
     'overlay_source',
     'display_dl1_event',
+    'display_array_camera'
 ]
+
 
 def display_dl1_event(event, camera_geometry, tel_id=1, axes=None, **kwargs):
     """

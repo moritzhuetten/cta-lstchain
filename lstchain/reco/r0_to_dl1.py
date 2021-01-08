@@ -178,7 +178,6 @@ def get_dl1(
     dl1_container.set_telescope_info(subarray, telescope_id)
     return dl1_container
 
-
 def get_dl1_lh_fit(
     calibrated_event,
     subarray,
@@ -269,7 +268,8 @@ def get_dl1_lh_fit(
     start_parameters = {'x_cm': dl1_container.x.to(u.m).value,
                         'y_cm': dl1_container.y.to(u.m).value,
                         'charge': dl1_container.intensity,
-                        't_cm': dl1_container.intercept - normalized_pulse_template.compute_time_of_max(),
+                        't_cm': dl1_container.intercept
+                        - normalized_pulse_template.compute_time_of_max(),
                         'v': np.abs(v),
                         'psi': psi,
                         'width': dl1_container.width.to(u.m).value,
@@ -289,9 +289,12 @@ def get_dl1_lh_fit(
     v_min, v_max = 0,  t_max / d_min
     r_max = np.sqrt(geom.pix_x**2 + geom.pix_y**2).to(u.m).value.max()
 
-    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(), geom.pix_x.to(u.m).value.max()),
-                        'y_cm': (geom.pix_y.to(u.m).value.min(), geom.pix_y.to(u.m).value.max()),
-                        'charge': (dl1_container.intensity * 0.01, dl1_container.intensity * 10),
+    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(),
+                                 geom.pix_x.to(u.m).value.max()),
+                        'y_cm': (geom.pix_y.to(u.m).value.min(),
+                                 geom.pix_y.to(u.m).value.max()),
+                        'charge': (dl1_container.intensity * 0.01,
+                                   dl1_container.intensity * 10),
                         't_cm': (-10, t_max + 10),
                         'v': (v_min, v_max),
                         'psi': (-np.pi, np.pi),
@@ -317,7 +320,8 @@ def get_dl1_lh_fit(
                                     bound_parameters=bound_parameters,
                                     )
 
-        fitter.predict(dl1_container, verbose=lh_fit_config['verbose'], ncall=lh_fit_config['ncall'])
+        fitter.predict(dl1_container, verbose=lh_fit_config['verbose'],
+                       ncall=lh_fit_config['ncall'])
 
         # convert ctapipe's width and length (in m) to deg: #TODO see previous
         foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
