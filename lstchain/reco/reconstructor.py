@@ -37,11 +37,11 @@ class DL0Fitter(ABC):
 
             Parameters
             ----------
-            waveform: array
+            waveform: float array
                 Calibrated signal in each pixel versus time
-            error: array or None
+            error: float array or None
                 Error on the waveform
-            sigma_s: array
+            sigma_s: float array
                 Standard deviation of the amplitude of
                 the single photo-electron pulse
             geometry:
@@ -57,13 +57,13 @@ class DL0Fitter(ABC):
             template: NormalizedPulseTemplate
                 Template of the response of the pixel to a photo-electron
                 Can contain two templates for high and low gain
-            gain: array
+            gain: float array
                 Selected gain in each pixel
             is_high_gain: boolean array
                 Identify pixel with high gain selected
-            baseline: array
+            baseline: float array
                 Remaining baseline in each pixel
-            crosstalk: float
+            crosstalk: float array
                 Probability of a photo-electron to interact twice in a pixel
             sigma_space: float
                 Size of the region over which the likelihood needs to be
@@ -74,7 +74,7 @@ class DL0Fitter(ABC):
                 the likelihood in number of temporal width of the signal
             time_before_shower: float
                 Duration before the start of the signal which is not ignored
-            time_after_shower:
+            time_after_shower: float
                 Duration after the end of the signal which is not ignored
             bound_parameters: dictionary
                 Bounds for the parameters used during the fit
@@ -627,12 +627,21 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         v: float
             Velocity of the evolution of the signal over the camera
         """
+
+        # Alternative to test (done in independent code)
+        def array_times_template_part(array, ti, template, gain_type):
+            return array[..., None] * template(ti, gain=gain_type)
+
+        def array_times_template(array, ti, template, is_high_gain):
+            return (array_times_template_part(array, ti, template, 'HG').T * is_high_gain
+                    + array_times_template_part(array, ti, template, 'LG').T * (~is_high_gain)).T
+
         dx = (self.pix_x - x_cm)
         dy = (self.pix_y - y_cm)
         long = dx * np.cos(psi) + dy * np.sin(psi)
         p = [v, t_cm]
         t = np.polyval(p, long)
-        t = self.times[..., np.newaxis] - t
+        t = self.times[..., None] - t
         t = t.T
 
         log_mu = log_gaussian2d(size=charge * self.pix_area,
@@ -649,9 +658,26 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # more than 10^-6. The limits are approximated by 2 broken linear
         # function obtained for 0 crosstalk.
         # The choice of kmin and kmax is currently not done on a pixel basis
+
+        # Alternative kmin, kmax and mask determination, faster?
+        mask = (mu <= (len(self.log_factorial / range_ext)/1.096)-47.8)
+        if len(mu[mask]) == 0:
+            kmin, kmax = 0, len(self.log_factorial)
+        else:
+            min_mu = min(mu[mask])
+            max_mu = max(mu[mask])
+            if min_mu < 120:
+                kmin = int(0.66 * (min_mu-20))
+            else:
+                kmin = int(0.904 * min_mu - 42.8)
+            if max_mu < 120:
+                kmax = np.ceil(1.34 * (max_mu-20) + 45)
+            else:
+                kmax = np.ceil(1.096 * max_mu + 47.8)
+        logger.debug("new k range determination %s - %s \n %s", kmin, kmax, mask)
+
         kmin = np.zeros(len(mu))
         kmax = np.zeros(len(mu))
-        it = 0
         for it, elt in enumerate(mu):
             if elt < 120:
                 kmin[it] = 0.66 * (elt-20)
@@ -670,6 +696,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             # kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
             kmin, kmax = min(kmin.astype(int)), max(kmax.astype(int))
 
+        logger.debug("old k range determination %s - %s \n %s", kmin, kmax, mask)
+
         if kmax > len(self.log_factorial):
             kmax = len(self.log_factorial)
             logger.debug("kmax forced to %s", kmax)
@@ -680,33 +708,37 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         self.photo_peaks = np.arange(kmin, kmax, dtype=np.int)
         self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
-        # Compute the poissonian term in the pixel likelihood
+        # Compute the Poisson term in the pixel likelihood
         x = mu + self.crosstalk_factor
         log_x = np.log(x)
         log_x = ((self.photo_peaks - 1) * log_x.T).T
         log_poisson = log_mu - self.log_factorial[kmin:kmax][..., None] - x + log_x
 
         # Compute the Gaussian term in the pixel likelihood
+        signal = self.data - self.baseline[..., None]
+
+        # Alternative to test (done in independent code)
+        mean = self.photo_peaks * array_times_template(self.gain, t, self.template,
+                                                       self.is_high_gain)[..., None]
+        sigma_n = (self.photo_peaks
+                   * (array_times_template(self.sigma_s, t, self.template,
+                                           self.is_high_gain)**2)[..., None])
+        logger.debug("new mean %s; sigma n %s", mean, sigma_n)
+
         mean_LG = self.photo_peaks * ((self.gain[..., None] *
                                        self.template(t, gain='LG')))[..., None]
-
         mean_HG = self.photo_peaks * ((self.gain[..., None] *
-                                       self.template(t, gain='HG')))[
-            ..., None]
-
+                                       self.template(t, gain='HG')))[..., None]
         mean = (mean_HG.T * self.is_high_gain) + mean_LG.T * (~self.is_high_gain)
         mean = mean.T
 
-        signal = self.data - self.baseline[..., None]
-
         sigma_n_LG = self.photo_peaks * ((self.sigma_s[..., None] *
                                           self.template(t, gain='LG')) ** 2)[..., None]
-
         sigma_n_HG = self.photo_peaks * ((self.sigma_s[..., None] *
                                           self.template(t, gain='HG')) ** 2)[..., None]
-
         sigma_n = sigma_n_HG.T * self.is_high_gain + sigma_n_LG.T * (~self.is_high_gain)
         sigma_n = sigma_n.T
+        logger.debug("old mean %s; sigma n %s", mean, sigma_n)
 
         sigma_n = (self.error**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
@@ -731,6 +763,16 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             sigma_hat = sigma_hat.T
             sigma_hat = np.sqrt((self.error[~mask]**2)[..., None] + sigma_hat)
 
+            """
+                    Alternative to test (done in independent code and above)
+            mu_hat = ((mu[~mask] / (1-self.crosstalk_factor[~mask]))
+                     * array_times_template(t, self.gain[~mask], self.template[~mask],
+                                     self.is_high_gain[~mask])[..., None])
+            sigma_hat = (((mu[~mask] / np.power(1-self.crosstalk_factor[~mask], 3))
+                         * array_times_template(t, self.gain[~mask], self.template[~mask],
+                                         self.is_high_gain[~mask])**2)[..., None])
+            """
+
             log_pixel_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
 
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
@@ -750,7 +792,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             n_points_HL = log_pixel_pdf_HL.size()
             log_pdf2 = ((np.log(pixel_pdf_LL).sum() + log_pixel_pdf_HL.sum())
                         / (n_points_LL + n_points_HL))
-
 
         mask = (pixel_pdf <= 0)
         pdf = pixel_pdf[~mask]
@@ -890,9 +931,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         axes.set_xlabel('time [ns]')
         axes.set_ylabel('Longitude [m]')
         label = (self.labels['t_cm']
-                + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm']))
+                 + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm']))
         label += ('\n' + self.labels['v']
-                 + ' : {:.2f} [m/ns]'.format(self.end_parameters['v']))
+                  + ' : {:.2f} [m/ns]'.format(self.end_parameters['v']))
         axes.plot(fitted_times, long_pix, color='w',
                  label=label)
         axes.legend(loc='best')
@@ -925,7 +966,7 @@ class NormalizedPulseTemplate:
         """
         self.time = np.array(time)
         self.amplitude_HG = np.array(amplitude_HG)
-        self.amplitude_LG = np.array(amplitude_LG)  
+        self.amplitude_LG = np.array(amplitude_LG)
         if amplitude_HG_std is not None:
             assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
             self.amplitude_HG_std = np.array(amplitude_HG_std)
@@ -1072,7 +1113,7 @@ class NormalizedPulseTemplate:
                 "LG": interp1d(self.time, self.amplitude_LG, kind='cubic',
                                bounds_error=False, fill_value=0.,
                                assume_sorted=True)}
-                
+
     def _interpolate_std(self):
         """
         Creates a normalised interpolation of the error on the pulse template

@@ -178,6 +178,7 @@ def get_dl1(
     dl1_container.set_telescope_info(subarray, telescope_id)
     return dl1_container
 
+
 def get_dl1_lh_fit(
     calibrated_event,
     subarray,
@@ -191,11 +192,11 @@ def get_dl1_lh_fit(
     use_main_island=True):
     """
     Return a DL1ParametersContainer of extracted features from a calibrated
-    event. The features are extracted by maximizing an image likelihood function
-    over pixels ands time samples. The model consider a 2D Gaussian distribution
-    of the charge and a linear temporal model. The spatio-temporal image model
-    is then compared to the signal vs time in each pixel while taking into
-    account the response of the instrument from calibration.
+    event. The features are extracted by maximizing an image likelihood
+    function over pixels ands time samples. The model consider a 2D Gaussian
+    distribution of the charge and a linear temporal model. The spatio-temporal
+    image model is then compared to the signal vs time in each pixel while
+    taking into account the response of the instrument from calibration.
     The DL1ParametersContainer needs to contain a first features estimation
     as seed for the likelihood fit.
 
@@ -598,7 +599,7 @@ def r0_to_dl1(
                             is_saturated = np.any(image > config['lh_fit_config']['n_peaks'])
 
                             if True: #not is_saturated: # temporary for testing only
-                                # rejects computationnally expensive events which would
+                                # rejects computationally expensive events which would
                                 # be poorly estimated with the selected value of n_peak
                                 # TODO : improve to not reject events
                                 try:
