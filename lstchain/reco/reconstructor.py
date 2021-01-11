@@ -44,7 +44,7 @@ class DL0Fitter(ABC):
             sigma_s: float array
                 Standard deviation of the amplitude of
                 the single photo-electron pulse
-            geometry:
+            geometry: ctapipe.instrument.camera.CameraGeometry
                 Camera geometry
             dt: float
                 Duration of time samples
@@ -81,22 +81,14 @@ class DL0Fitter(ABC):
                 Parameters are :
                     x_cm, y_cm, charge, t_cm, v, psi, width, length
         """
-        self.gain = gain
-        self.is_high_gain = is_high_gain
-        self.baseline = baseline
-        self.sigma_s = sigma_s
-        self.crosstalk = crosstalk
-
         self.geometry = geometry
         self.dt = dt
         self.template = template
 
-        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
         self.times = np.arange(0, self.n_samples) * self.dt
 
         self.pix_x = geometry.pix_x.value
         self.pix_y = geometry.pix_y.value
-        self.pix_area = geometry.pix_area.to(u.m**2).value
 
         self.labels = {'charge': 'Charge [p.e.]',
                        't_cm': '$t_{CM}$ [ns]',
@@ -175,18 +167,6 @@ class DL0Fitter(ABC):
 
         return s
 
-    def fill_event(self, data, error=None):
-        """
-
-            Parameters
-            ----------
-            data: DL0 waveforms (n_pixels, n_samples)
-            error: Associated errors to the DL0 waveforms (n_pixels, n_samples)
-            Returns
-            -------
-
-        """
-
     def fit(self, verbose=True, minuit=True, ncall=None, **kwargs):
         """
             Performs the fitting procedure.
@@ -216,9 +196,12 @@ class DL0Fitter(ABC):
                 else:
                     fixed_params['fix_' + key] = False
 
-            # print(fixed_params, bounds_params, start_params)
+            logger.debug("fixed parameters :\n %s\n"
+                         "bound parameters :\n %s\n"
+                         "start parameters :\n %s\n",
+                         fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
-            f = lambda *args: -self.log_likelihood(*args)
+            def f(*args): return -self.log_likelihood(*args)
             print_level = 2 if verbose else 0
             m = Minuit(f, print_level=print_level,
                        forced_parameters=self.names_parameters, errordef=0.5,
@@ -236,21 +219,18 @@ class DL0Fitter(ABC):
             except (KeyError, AttributeError, RuntimeError):
                 self.error_parameters = {key: np.nan for key in self.names_parameters}
                 pass
-            # print(self.end_parameters, self.error_parameters)
-
+            logger.debug("end parameters :\n %s\n"
+                         "error parameters :\n %s\n",
+                         self.end_parameters, self.error_parameters)
         else:
-
             fixed_params = {}
-
             for param in self.names_parameters:
                 if param in kwargs.keys():
                     fixed_params[param] = kwargs[param]
                     del kwargs[param]
-
             start_parameters = []
             bounds = []
             name_parameters = []
-
             for key in self.names_parameters:
                 if key not in fixed_params.keys():
                     start_parameters.append(self.start_parameters[key])
@@ -258,31 +238,25 @@ class DL0Fitter(ABC):
                     name_parameters.append(key)
 
             def llh(x):
-
                 params = dict(zip(name_parameters, x))
                 return -self.log_likelihood(**params, **fixed_params)
 
-            result = minimize(llh, x0=start_parameters, bounds=bounds, **kwargs)
+            result = minimize(llh, x0=np.asarray(start_parameters),
+                              bounds=bounds, **kwargs)
             self.end_parameters = dict(zip(name_parameters, result.x))
             self.end_parameters.update(fixed_params)
-
             try:
                 self.correlation_matrix = result.hess_inv.todense()
                 self.error_parameters = dict(zip(name_parameters,
                                              np.diagonal(np.sqrt(self.correlation_matrix))))
             except (KeyError, AttributeError):
                 pass
-
             if verbose:
                 print(result)
 
     def pdf(self, *args, **kwargs):
         """Compute a probability density function."""
         return np.exp(self.log_pdf(*args, **kwargs))
-
-    @abstractmethod
-    def plot(self):
-        """Abstract plot method."""
 
     @abstractmethod
     def compute_bounds(self):
@@ -360,9 +334,6 @@ class DL0Fitter(ABC):
                          color='b', label='Starting value {:.2f}'.format(
                     self.start_parameters[key]
                 ))
-            # axes.axvspan(self.bound_parameters[key][0],
-            #              self.bound_parameters[key][1], label='bounds',
-            #             alpha=0.5, facecolor='k')
             axes.set_ylabel('-$\ln \mathcal{L}$')
             axes.set_xlabel(x_label)
 
@@ -383,7 +354,6 @@ class DL0Fitter(ABC):
             axes.set_xlabel('-$\ln \mathcal{L}$')
             axes.set_ylabel(x_label)
             axes.xaxis.set_label_position('top')
-            # axes.xaxis.tick_top()
 
         axes.legend(loc='best')
         return axes
@@ -400,7 +370,7 @@ class DL0Fitter(ABC):
                 First parameter over which the function needs to be plotted
             parameter_2: string
                 Second parameter over which the function needs to be plotted
-            size: int
+            size: int or (int, int)
                 Number of points of the likelihood per dimension
             x_label: string
                 Label of the x axis
@@ -516,7 +486,6 @@ class DL0Fitter(ABC):
             return self.plot_1dlikelihood(parameter_name=parameter_1,
                                           axes=axes, x_label=x_label,
                                           size=size)
-
         else:
             return self.plot_2dlikelihood(parameter_1,
                                           parameter_2=parameter_2,
@@ -540,7 +509,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
             Parameters:
             *args, **kwargs: Argument for the DL0Fitter initialisation
-            image: ADDTYPE
+            image: array_like
                 Image of the event in the camera
             n_peak: int
                 Maximum upper bound of the sum over possible detected
@@ -595,6 +564,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
             Compute quantities used at each iteration of the fitting procedure.
         """
+        self.n_peaks = n_peaks
         photoelectron_peak = np.arange(range_ext*n_peaks, dtype=np.int)
         # the range_ext* is for testing only,
         # extends the range available for the sum in the likelihood
@@ -660,9 +630,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # The choice of kmin and kmax is currently not done on a pixel basis
 
         # Alternative kmin, kmax and mask determination, faster?
-        mask = (mu <= (len(self.log_factorial / range_ext)/1.096)-47.8)
+        mask = (mu <= self.n_peaks/1.096 - 47.8)
         if len(mu[mask]) == 0:
-            kmin, kmax = 0, len(self.log_factorial)
+            kmin, kmax = 0, self.n_peaks
         else:
             min_mu = min(mu[mask])
             max_mu = max(mu[mask])
@@ -687,19 +657,17 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                 kmax[it] = 1.096 * elt + 47.8
         kmin[kmin < 0] = 0
         kmax = np.ceil(kmax)
-        mask = (kmax <= len(self.log_factorial) / range_ext)
-        # /range_ext for testing only
-        # compensate the extension of len(self.log_factorial) back to n_peak
+        mask = (kmax <= self.n_peaks)
         if len(kmin[mask]) == 0 or len(kmax[mask]) == 0:
-            kmin, kmax = 0, len(self.log_factorial)
+            kmin, kmax = 0, self.n_peaks
         else:
             # kmin, kmax = min(kmin[mask].astype(int)), max(kmax[mask].astype(int))
             kmin, kmax = min(kmin.astype(int)), max(kmax.astype(int))
 
         logger.debug("old k range determination %s - %s \n %s", kmin, kmax, mask)
 
-        if kmax > len(self.log_factorial):
-            kmax = len(self.log_factorial)
+        if kmax > self.n_peaks * range_ext:
+            kmax = self.n_peaks * range_ext
             logger.debug("kmax forced to %s", kmax)
             # Only useful to compare the sum with the Gaussian approx.
             # Actual implementation should use n_peak as length and
@@ -835,10 +803,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
     def compute_bounds(self):
         """Method for the computation of the bounds for the fit."""
 
-    def plot(self, n_sigma=3, init=False):
+    def plot_event(self, n_sigma=3, init=False):
         """
             Plot the image of the event in the camera along with the extracted
-            ellispis before or after the fitting procedure.
+            ellipsis before or after the fitting procedure.
 
         Parameters
         ----------
@@ -935,7 +903,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         label += ('\n' + self.labels['v']
                   + ' : {:.2f} [m/ns]'.format(self.end_parameters['v']))
         axes.plot(fitted_times, long_pix, color='w',
-                 label=label)
+                  label=label)
         axes.legend(loc='best')
         axes.get_figure().colorbar(label='[LSB]', ax=axes, mappable=M)
 
@@ -948,8 +916,8 @@ class NormalizedPulseTemplate:
         of the camera to a single photo-electron in high and low gain.
     """
 
-    def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_std=None,
-                 amplitude_LG_std=None):
+    def __init__(self, amplitude_HG, amplitude_LG, time, amplitude_HG_err=None,
+                 amplitude_LG_err=None):
         """
             Save the pulse template and optional error
             and create an interpolation.
@@ -961,24 +929,24 @@ class NormalizedPulseTemplate:
             in high gain (HG) and low gain (LG) for successive time samples
         time: array
             Times of the samples
-        amplitude_HG/LG_std: array
+        amplitude_HG/LG_err: array
             Error on the pulse template amplitude
         """
         self.time = np.array(time)
         self.amplitude_HG = np.array(amplitude_HG)
         self.amplitude_LG = np.array(amplitude_LG)
-        if amplitude_HG_std is not None:
-            assert np.array(amplitude_HG_std).shape == self.amplitude_HG.shape
-            self.amplitude_HG_std = np.array(amplitude_HG_std)
+        if amplitude_HG_err is not None:
+            assert np.array(amplitude_HG_err).shape == self.amplitude_HG.shape
+            self.amplitude_HG_err = np.array(amplitude_HG_err)
         else:
-            self.amplitude_HG_std = np.zeros(self.amplitude_HG.shape)
-        if amplitude_LG_std is not None:
-            assert np.array(amplitude_LG_std).shape == self.amplitude_LG.shape
-            self.amplitude_LG_std = np.array(amplitude_LG_std)
+            self.amplitude_HG_err = np.zeros(self.amplitude_HG.shape)
+        if amplitude_LG_err is not None:
+            assert np.array(amplitude_LG_err).shape == self.amplitude_LG.shape
+            self.amplitude_LG_err = np.array(amplitude_LG_err)
         else:
-            self.amplitude_LG_std = self.amplitude_LG * 0
+            self.amplitude_LG_err = self.amplitude_LG * 0
         self._template = self._interpolate()
-        self._template_std = self._interpolate_std()
+        self._template_err = self._interpolate_err()
 
     def __call__(self, time, gain, amplitude=1, t_0=0, baseline=0):
         """
@@ -1034,7 +1002,7 @@ class NormalizedPulseTemplate:
         y: array
             Value of the template in each pixel at the requested times
         """
-        y = amplitude * self._template_std[gain](time - t_0) + baseline
+        y = amplitude * self._template_err[gain](time - t_0) + baseline
         return np.array(y)
 
     def save(self, filename):
@@ -1045,8 +1013,8 @@ class NormalizedPulseTemplate:
         filename: string
             Location of the output text file
         """
-        data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_std,
-                          self.amplitude_LG, self.amplitude_LG_std])
+        data = np.vstack([self.time, self.amplitude_HG, self.amplitude_HG_err,
+                          self.amplitude_LG, self.amplitude_LG_err])
         np.savetxt(filename, data.T)
 
     @classmethod
@@ -1075,10 +1043,21 @@ class NormalizedPulseTemplate:
         if len(data) == 3:  # no error in file
             t, hg, lg = data
             return cls(amplitude_HG=hg, amplitude_LG=lg, time=t)
-        elif len(data) == 5: # two gains and errors
+        elif len(data) == 5:  # two gains and errors
             t, hg, lg, dhg, dlg = data
             return cls(amplitude_HG=hg, amplitude_LG=lg, time=t,
-                       amplitude_HG_std=dhg, amplitude_LG_std=dlg)
+                       amplitude_HG_err=dhg, amplitude_LG_err=dlg)
+
+    @staticmethod
+    def _normalize(amplitude, error):
+        """
+        Normalize the pulse template.
+        """
+        if abs(np.min(amplitude)) <= abs(np.max(amplitude)):
+            normalization = np.max(amplitude)
+        else:
+            normalization = np.min(amplitude)
+        return amplitude/normalization, error/normalization
 
     def _interpolate(self):
         """
@@ -1091,22 +1070,12 @@ class NormalizedPulseTemplate:
         amplitude of the template versus time,
         for the high and low gain channels.
         """
-        if abs(np.min(self.amplitude_HG)) <= abs(np.max(self.amplitude_HG)):
-            normalization = np.max(self.amplitude_HG)
-        else:
-            normalization = np.min(self.amplitude_HG)
-
-        self.amplitude_HG = self.amplitude_HG / normalization
-        self.amplitude_HG_std = self.amplitude_HG_std / normalization
-
-        if abs(np.min(self.amplitude_LG)) <= abs(np.max(self.amplitude_LG)):
-            normalization = np.max(self.amplitude_LG)
-        else:
-            normalization = np.min(self.amplitude_LG)
-
-        self.amplitude_LG = self.amplitude_LG / normalization
-        self.amplitude_LG_std = self.amplitude_LG_std / normalization
-
+        self.amplitude_HG, self.amplitude_HG_err = self._normalize(
+                                                         self.amplitude_HG,
+                                                         self.amplitude_HG_err)
+        self.amplitude_LG, self.amplitude_LG_err = self._normalize(
+                                                         self.amplitude_LG,
+                                                         self.amplitude_LG_err)
         return {"HG": interp1d(self.time, self.amplitude_HG, kind='cubic',
                                bounds_error=False, fill_value=0.,
                                assume_sorted=True),
@@ -1114,9 +1083,9 @@ class NormalizedPulseTemplate:
                                bounds_error=False, fill_value=0.,
                                assume_sorted=True)}
 
-    def _interpolate_std(self):
+    def _interpolate_err(self):
         """
-        Creates a normalised interpolation of the error on the pulse template
+        Creates an interpolation of the error on the pulse template
         from a discrete and normalised input.
 
         Return
@@ -1125,10 +1094,10 @@ class NormalizedPulseTemplate:
         normalised amplitude of the template versus time,
         for the high and low gain channels.
         """
-        return {"HG": interp1d(self.time, self.amplitude_HG_std, kind='cubic',
+        return {"HG": interp1d(self.time, self.amplitude_HG_err, kind='cubic',
                                bounds_error=False, fill_value=np.inf,
                                assume_sorted=True),
-                "LG": interp1d(self.time, self.amplitude_LG_std, kind='cubic',
+                "LG": interp1d(self.time, self.amplitude_LG_err, kind='cubic',
                                bounds_error=False, fill_value=np.inf,
                                assume_sorted=True)}
 

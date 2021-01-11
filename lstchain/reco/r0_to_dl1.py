@@ -237,7 +237,7 @@ def get_dl1_lh_fit(
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
 
-    # convert back to ctapipe's width and length (in m) from deg TODO inneficient, may need to move the original conversion
+    # convert back to ctapipe's width and length (in m) from deg TODO inefficient, may need to move the original conversion
     foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
     width = foclen*np.tan(np.deg2rad(dl1_container.width))
     length = foclen*np.tan(np.deg2rad(dl1_container.length))
@@ -332,19 +332,20 @@ def get_dl1_lh_fit(
         dl1_container.length = length
 
         if lh_fit_config['verbose']:
-            axes = fitter.plot(init=True)
+            axes = fitter.plot_event(init=True)
             axes.axes.get_figure().savefig('event/start.png')
 
             axes = fitter.plot_waveforms()
             axes.get_figure().savefig('event/waveforms.png')
 
-            axes = fitter.plot()
+            axes = fitter.plot_event()
             axes.axes.get_figure().savefig('event/end.png')
 
             for params in fitter.start_parameters.keys():
                 axes = fitter.plot_likelihood(params)
                 axes.get_figure().savefig('event/' + params + '.png')
-            print("event plot produced, input?")
+            print("event plot produced, press Enter to continue "
+                  "or Ctrl+C and Enter to stop")
             input()
     except Exception as e:
 
