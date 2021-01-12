@@ -677,10 +677,13 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         self.crosstalk_factor = self.photo_peaks[..., None]*self.crosstalk
 
         # Compute the Poisson term in the pixel likelihood
-        x = mu + self.crosstalk_factor
-        log_x = np.log(x)
-        log_x = ((self.photo_peaks - 1) * log_x.T).T
-        log_poisson = log_mu - self.log_factorial[kmin:kmax][..., None] - x + log_x
+        mu_plus_crosstalk = mu + self.crosstalk_factor
+        log_mu_plus_crosstalk = np.log(mu_plus_crosstalk)
+        log_mu_plus_crosstalk = ((self.photo_peaks - 1)
+                                 * log_mu_plus_crosstalk.T).T
+        log_poisson = (log_mu - self.log_factorial[kmin:kmax][..., None]
+                       - mu_plus_crosstalk
+                       + log_mu_plus_crosstalk)
 
         # Compute the Gaussian term in the pixel likelihood
         signal = self.data - self.baseline[..., None]
