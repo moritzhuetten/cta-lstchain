@@ -84,6 +84,7 @@ class DL0Fitter(ABC):
         self.geometry = geometry
         self.dt = dt
         self.template = template
+        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
 
         self.times = np.arange(0, self.n_samples) * self.dt
 
@@ -119,7 +120,6 @@ class DL0Fitter(ABC):
         self.sigma_s = sigma_s[self.mask_pixel]
         self.crosstalk = crosstalk[self.mask_pixel]
 
-        self.n_pixels, self.n_samples = len(geometry.pix_area), n_samples
         self.times = (np.arange(0, self.n_samples) * self.dt)[self.mask_time]
 
         self.pix_x = geometry.pix_x.value[self.mask_pixel]
@@ -744,7 +744,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                          self.is_high_gain[~mask])**2)[..., None])
             """
 
-            log_pixel_pdf_HL = log_gaussian(x[~mask][..., None], mu_hat, sigma_hat)
+            log_pixel_pdf_HL = log_gaussian(signal[~mask][..., None], mu_hat, sigma_hat)
 
         log_poisson = np.expand_dims(log_poisson.T, axis=1)
         log_pixel_pdf_elt = log_poisson + log_gauss
