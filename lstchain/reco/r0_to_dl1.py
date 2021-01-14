@@ -347,7 +347,7 @@ def get_dl1_lh_fit(
             input()
     except Exception as e:
 
-        print('Could not fit : ', e)
+        logger.exception('Could not fit : %s', e)
         logger.exception(e.__class__)
         return None
     return dl1_container
