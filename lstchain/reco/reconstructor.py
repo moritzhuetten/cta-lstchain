@@ -697,11 +697,13 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         if np.any(~mask):
             mu_hat = ((mu[~mask] / (1-self.crosstalk[~mask]))[..., None]
-                     * array_times_template(self.gain[~mask], t[~mask], self.template,
-                                     self.is_high_gain[~mask]))
+                      * array_times_template(self.gain[~mask], t[~mask],
+                                             self.template,
+                                             self.is_high_gain[~mask]))
             sigma_hat = (((mu[~mask] / np.power(1-self.crosstalk[~mask], 3))[..., None]
-                         * array_times_template(self.gain[~mask], t[~mask], self.template,
-                                         self.is_high_gain[~mask])**2))
+                         * array_times_template(self.gain[~mask], t[~mask],
+                                                self.template,
+                                                self.is_high_gain[~mask])**2))
             sigma_hat = np.sqrt((self.error[~mask]**2) + sigma_hat)
 
             log_pixel_pdf_HL = log_gaussian(signal[~mask], mu_hat, sigma_hat)
@@ -711,9 +713,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         pixel_pdf = np.sum(np.exp(log_pixel_pdf_elt), axis=-1)
 
         log_pdf2 = 0
-        a=False
+        a = False
         if np.any(~mask):
-            a=True
+            a = True
             log_pixel_pdf = np.log(pixel_pdf)
             #logger.debug("Gaussian approx %s", log_pixel_pdf_HL)
             #logger.debug("Poisson sum %s", log_pixel_pdf[~mask])
