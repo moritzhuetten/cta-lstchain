@@ -182,7 +182,6 @@ class DL0Fitter(ABC):
             fixed_params = {}
             bounds_params = {}
             start_params = self.start_parameters
-
             if self.bound_parameters is not None:
                 for key, val in self.bound_parameters.items():
                     bounds_params['limit_' + key] = val
@@ -190,16 +189,12 @@ class DL0Fitter(ABC):
             for key in self.names_parameters:
                 if key in kwargs.keys():
                     fixed_params['fix_' + key] = True
-
                 else:
                     fixed_params['fix_' + key] = False
-
-            #logger.debug("fixed parameters :\n %s\n"
-            #             "bound parameters :\n %s\n"
-            #             "start parameters :\n %s\n",
-            #             fixed_params, bounds_params, start_params)
             options = {**start_params, **bounds_params, **fixed_params}
+
             def f(*args): return -self.log_likelihood(*args)
+
             print_level = 2 if verbose else 0
             m = Minuit(f, print_level=print_level,
                        forced_parameters=self.names_parameters, errordef=0.5,
@@ -217,9 +212,6 @@ class DL0Fitter(ABC):
             except (KeyError, AttributeError, RuntimeError):
                 self.error_parameters = {key: np.nan for key in self.names_parameters}
                 pass
-            #logger.debug("end parameters :\n %s\n"
-            #             "error parameters :\n %s\n",
-            #             self.end_parameters, self.error_parameters)
         else:
             fixed_params = {}
             for param in self.names_parameters:
@@ -723,7 +715,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         container.y = self.end_parameters['y_cm'] * u.m
         container.r = np.sqrt(container.x**2 + container.y**2)
         container.phi = np.arctan2(container.y, container.x)
-        container.psi = self.end_parameters['psi'] * u.rad # TODO turn psi angle when length < width
+        container.psi = self.end_parameters['psi'] * u.rad  # TODO turn psi angle when length < width
         container.length = max(self.end_parameters['length'],
                                self.end_parameters['width']) * u.m
         container.width = min(self.end_parameters['length'],
@@ -769,9 +761,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         length = n_sigma * params['length']
         psi = params['psi']
+        """
         dx = length * np.cos(psi)
         dy = length * np.sin(psi)
-        """
         direction_arrow = Arrow(x=params['x_cm'],
                                 y=params['y_cm'],
                                 dx=dx, dy=dy, width=10, color='k',
@@ -781,7 +773,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
 
         cam_display.add_ellipse(centroid=(params['x_cm'],
-                                        params['y_cm']),
+                                          params['y_cm']),
                                 width=n_sigma * params['width'],
                                 length=length,
                                 angle=psi,
