@@ -634,7 +634,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             kmin = 0
         if kmax > self.n_peaks:
             kmax = int(self.n_peaks)
-        logger.warning("kmax forced to %s", kmax)
+            logger.warning("kmax forced to %s", kmax)
 
         photo_peaks = np.arange(kmin, kmax, dtype=np.int)
         crosstalk_factor = photo_peaks[..., None]*self.crosstalk[mask_LL]
