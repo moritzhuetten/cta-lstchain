@@ -605,17 +605,17 @@ def r0_to_dl1(
                                                         dl1_container=dl1_filled,
                                                         custom_config=config,
                                                         use_main_island=True)
-                            dl1_filled.lhfit_call_status = "Processed"
+                            dl1_filled.lhfit_call_status = 1
                         except Exception as err:
-                            dl1_filled.lhfit_call_status = "Not processed : Error in function"
+                            dl1_filled.lhfit_call_status = -1
                             logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
                             logger.exception(err.__class__)
                             logger.exception(err)
                             raise
                     else:
-                        dl1_filled.lhfit_call_status = "Not processed : n_pixel = 0"
+                        dl1_filled.lhfit_call_status = 0
                 else:
-                    dl1_filled.lhfit_call_status = "Not active"
+                    dl1_filled.lhfit_call_status = None
 
                 if not is_simu:
                     dl1_container.ucts_time = 0
