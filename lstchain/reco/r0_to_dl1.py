@@ -278,9 +278,9 @@ def get_dl1_lh_fit(
         start_parameters['width'] = 0.00001
     if start_parameters['length'] <= 0.0:
         start_parameters['length'] = 0.00001
-    if start_parameters['t_cm'] == np.nan:
+    if np.isnan(start_parameters['t_cm']):
         start_parameters['t_cm'] = 0.
-    if start_parameters['v'] == np.nan:
+    if np.isnan(start_parameters['v']):
         start_parameters['v'] = 40
 
     t_max = n_samples * 1
