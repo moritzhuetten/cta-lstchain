@@ -492,7 +492,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         calibrated response of the pixels.
     """
 
-    def __init__(self, *args, image, n_peaks=100, **kwargs):
+    def __init__(self, *args, n_peaks=100, **kwargs):
         """
             Initialise the data and parameters used for the fitting, including
             method specific objects.
@@ -506,7 +506,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                 photo-electron value in the likelihood computation.
             -----------
         """
-        self.image = image
         super().__init__(*args, **kwargs)
         self._initialize_pdf(n_peaks=n_peaks)
 
@@ -731,13 +730,15 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
     def compute_bounds(self):
         """Method for the computation of the bounds for the fit."""
 
-    def plot_event(self, n_sigma=3, init=False):
+    def plot_event(self, image, n_sigma=3, init=False):
         """
             Plot the image of the event in the camera along with the extracted
             ellipsis before or after the fitting procedure.
 
         Parameters
         ----------
+        image:
+            Distribution of signal for the event in number of p.e.
         n_sigma: float
             Multiplicative factor on the extracted width and length
             used for the displayed ellipsis
@@ -750,8 +751,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             Camera image using matplotlib
 
         """
-        charge = self.image
-        cam_display = display_array_camera(charge,
+        cam_display = display_array_camera(image,
                                            camera_geometry=self.geometry)
 
         if init:
@@ -783,24 +783,26 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         return cam_display
 
-    def plot_waveforms(self, axes=None):
+    def plot_waveforms(self, image, axes=None):
         """
             Plot the intensity of the signal in the camera as a function of
             time and of the position projected on the main axis of the fitted
             ellipsis.
 
-            Parameters
-            ----------
-            axes: matplotlib.pyplot.axis
-                Axis used to store the figure
-                If None, a new one is created
+        Parameters
+        ----------
+        image:
+            Distribution of signal for the event in number of p.e.
+        axes: matplotlib.pyplot.axis
+            Axis used to store the figure
+            If None, a new one is created
 
-            Returns
-            -------
-            axes: matplotlib.pyplot.axis
-                Object filled with the figure
+        Returns
+        -------
+        axes: matplotlib.pyplot.axis
+            Object filled with the figure
         """
-        image = self.image[self.mask_pixel]
+        image = image[self.mask_pixel]
         n_pixels = min(15, len(image))
         pixels = np.argsort(image)[-n_pixels:]
         dx = (self.pix_x[pixels] - self.end_parameters['x_cm'])

@@ -71,9 +71,6 @@ cleaning_method = tailcuts_clean
 
 
 
-geom = CameraGeometry.from_name('LSTCam-003')
-# TODO check if global variable needed and camera type hard coded
-
 
 def get_dl1(
         calibrated_event,
@@ -81,6 +78,7 @@ def get_dl1(
         telescope_id,
         dl1_container=None,
         custom_config={},
+        lhfit_args={}
 ):
     """
     Return a DL1ParametersContainer of extracted features from a calibrated event.
@@ -95,7 +93,10 @@ def get_dl1(
     dl1_container: DL1ParametersContainer
     custom_config: path to a configuration file
         configuration used for tailcut cleaning
-        supersedes the standard configuration
+        superseeds the standard configuration
+    lhfit_args: Dictionary
+        Set of optional parameters needed for the DL1 extraction using the
+        likelihood fit method
 
     Returns
     -------
@@ -153,6 +154,32 @@ def get_dl1(
             # Fill container
             dl1_container.fill_hillas(hillas)
 
+            if 'lh_fit_config' in config.keys():
+                # Re-evaluate the DL1 parameters using a likelihood
+                # minimization method
+                if (dl1_container['n_pixels'] is not 0
+                        and (lhfit_args["is_simu"]
+                             or dl1_container['n_pixels'] < 1825)):
+                    try:
+                        get_dl1_lh_fit(calibrated_event,
+                                       camera_geometry,
+                                       telescope_id,
+                                       is_simu=lhfit_args["is_simu"],
+                                       normalized_pulse_template=lhfit_args["pulse_template"],
+                                       dl1_container=dl1_container,
+                                       custom_config=config)
+                        dl1_container.lhfit_call_status = 1
+                    except Exception as err:
+                        dl1_container.lhfit_call_status = -1
+                        logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                        logger.exception(err.__class__)
+                        logger.exception(err)
+                        raise
+                else:
+                    dl1_container.lhfit_call_status = 0
+            else:
+                dl1_container.lhfit_call_status = None
+
             # convert ctapipe's width and length (in m) to deg:
             foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
             width = np.rad2deg(np.arctan2(dl1_container.width, foclen))
@@ -174,24 +201,22 @@ def get_dl1(
     # We set other fields which still make sense for a non-parametrized
     # image:
     dl1_container.set_telescope_info(subarray, telescope_id)
+
     return dl1_container
 
 
 def get_dl1_lh_fit(
     calibrated_event,
-    subarray,
+    geometry,
     telescope_id,
+    is_simu,
     dl1_container,
     normalized_pulse_template,
-    image,
-    is_simu,
-    custom_config={},
-    geometry=geom,  # TODO check why default value, check why the global variable is still used in the function
-    use_main_island=True):
+    custom_config={}):
     """
     Return a DL1ParametersContainer of extracted features from a calibrated
     event. The features are extracted by maximizing an image likelihood
-    function over pixels ands time samples. The model consider a 2D Gaussian
+    function over pixels ands time samples. The model considers a 2D Gaussian
     distribution of the charge and a linear temporal model. The spatio-temporal
     image model is then compared to the signal vs time in each pixel while
     taking into account the response of the instrument from calibration.
@@ -201,26 +226,23 @@ def get_dl1_lh_fit(
     Parameters
     ----------
     calibrated_event: ctapipe event container
-    subarray: `ctapipe.instrument.subarray.SubarrayDescription`
+    geometry: camera geometry
     telescope_id: `int`
     dl1_container: DL1ParametersContainer
     normalized_pulse_template: NormalizedPulseTemplate
-    image: array_like
-        Charge in each pixel
     is_simu: `bool`
     custom_config: path to a configuration file
-        contains the camera calibration parameters
-        configuration used for tailcut cleaning
-        superseeds the standard configuration
-    use_main_island: `bool` Use only the main island
-        to calculate DL1 parameters
+                   Contains calibration information and fitting configuration
 
     Returns
     -------
     DL1ParametersContainer
     """
     lh_fit_config = custom_config['lh_fit_config']
-    telescope = subarray.tel[telescope_id] #useless? used for geometry in get dl1 function
+    """
+    pass it or use :
+    is_simu = False if dl1_container["mc_energy"] is None else True
+    """
     if is_simu:
         waveform = calibrated_event.r0.tel[telescope_id].waveform
         n_channels, n_pixels, n_samples = waveform.shape
@@ -234,13 +256,6 @@ def get_dl1_lh_fit(
     waveform = (waveform - baseline)
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
-
-    # convert back to ctapipe's width and length (in m) from deg TODO inefficient, may need to move the original conversion
-    foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
-    width = foclen*np.tan(np.deg2rad(dl1_container.width))
-    length = foclen*np.tan(np.deg2rad(dl1_container.length))
-    dl1_container.width = width
-    dl1_container.length = length
 
     mask_high = (selected_gains == 0)
 
@@ -284,14 +299,14 @@ def get_dl1_lh_fit(
         start_parameters['v'] = 40
 
     t_max = n_samples * 1
-    d_min = (np.sqrt(geom.pix_area.to(u.m**2).value) / 2).min()
+    d_min = (np.sqrt(geometry.pix_area.to(u.m**2).value) / 2).min()
     v_min, v_max = 0,  t_max / d_min
-    r_max = np.sqrt(geom.pix_x**2 + geom.pix_y**2).to(u.m).value.max()
+    r_max = np.sqrt(geometry.pix_x**2 + geometry.pix_y**2).to(u.m).value.max()
 
-    bound_parameters = {'x_cm': (geom.pix_x.to(u.m).value.min(),
-                                 geom.pix_x.to(u.m).value.max()),
-                        'y_cm': (geom.pix_y.to(u.m).value.min(),
-                                 geom.pix_y.to(u.m).value.max()),
+    bound_parameters = {'x_cm': (geometry.pix_x.to(u.m).value.min(),
+                                 geometry.pix_x.to(u.m).value.max()),
+                        'y_cm': (geometry.pix_y.to(u.m).value.min(),
+                                 geometry.pix_y.to(u.m).value.max()),
                         'charge': (dl1_container.intensity * 0.01,
                                    dl1_container.intensity * 10),
                         't_cm': (-10, t_max + 10),
@@ -302,12 +317,11 @@ def get_dl1_lh_fit(
 
     try:
         fitter = TimeWaveformFitter(waveform=waveform,
-                                    image=image,
                                     error=error,
                                     n_peaks=lh_fit_config['n_peaks'],
                                     sigma_s=sigma_s,
-                                    geometry=geometry, dt=1,
-                                    n_samples=n_samples,
+                                    geometry=geometry,
+                                    dt=1, n_samples=n_samples,
                                     template=normalized_pulse_template,
                                     gain=gain, is_high_gain=mask_high,
                                     baseline=baseline, crosstalk=crosstalk,
@@ -316,27 +330,21 @@ def get_dl1_lh_fit(
                                     time_before_shower=lh_fit_config['time_before_shower'],
                                     time_after_shower=lh_fit_config['time_after_shower'],
                                     start_parameters=start_parameters,
-                                    bound_parameters=bound_parameters,
+                                    bound_parameters=bound_parameters
                                     )
 
         fitter.predict(dl1_container, verbose=lh_fit_config['verbose'],
                        ncall=lh_fit_config['ncall'])
 
-        # convert ctapipe's width and length (in m) to deg: #TODO see previous
-        foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
-        width = np.rad2deg(np.arctan2(dl1_container.width, foclen))
-        length = np.rad2deg(np.arctan2(dl1_container.length, foclen))
-        dl1_container.width = width
-        dl1_container.length = length
-
         if lh_fit_config['verbose']:
-            axes = fitter.plot_event(init=True)
+            image = calibrated_event.dl1.tel[telescope_id].image
+            axes = fitter.plot_event(image, init=True)
             axes.axes.get_figure().savefig('event/start.png')
 
-            axes = fitter.plot_waveforms()
+            axes = fitter.plot_waveforms(image)
             axes.get_figure().savefig('event/waveforms.png')
 
-            axes = fitter.plot_event()
+            axes = fitter.plot_event(image)
             axes.axes.get_figure().savefig('event/end.png')
 
             for params in fitter.start_parameters.keys():
@@ -447,9 +455,12 @@ def r0_to_dl1(
             filters=HDF5_ZSTD_FILTERS,
             metadata=metadata,
         )
-
+    lhfit_args = {}
     if ('lh_fit_config' in config.keys()):
-        pulse_template = NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location'])
+        lhfit_args = {
+        "pulse_template": NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location']),
+        "is_simu": is_simu
+        }
 
     with HDF5TableWriter(
         filename=output_filename,
@@ -581,41 +592,16 @@ def r0_to_dl1(
                 assert event.dl1.tel[telescope_id].image is not None
 
                 try:
-                    dl1_filled = get_dl1(event,
-                                         subarray, telescope_id,
-                                         dl1_container=dl1_container,
-                                         custom_config=config,
-                                         use_main_island=True)
+                    get_dl1(event,
+                            subarray, telescope_id,
+                            dl1_container=dl1_container,
+                            custom_config=config,
+                            use_main_island=True,
+                            lhfit_args=lhfit_args)
                 except HillasParameterizationError:
                     logger.exception(
                         'HillasParameterizationError in get_dl1()'
                     )
-
-                image = event.dl1.tel[telescope_id].image
-
-                if 'lh_fit_config' in config.keys():
-                    if dl1_filled['n_pixels'] is not 0:
-                        try:
-                            dl1_filled = get_dl1_lh_fit(event,
-                                                        subarray,
-                                                        telescope_id,
-                                                        image=image,
-                                                        is_simu=is_simu,
-                                                        normalized_pulse_template=pulse_template,
-                                                        dl1_container=dl1_filled,
-                                                        custom_config=config,
-                                                        use_main_island=True)
-                            dl1_filled.lhfit_call_status = 1
-                        except Exception as err:
-                            dl1_filled.lhfit_call_status = -1
-                            logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
-                            logger.exception(err.__class__)
-                            logger.exception(err)
-                            raise
-                    else:
-                        dl1_filled.lhfit_call_status = 0
-                else:
-                    dl1_filled.lhfit_call_status = None
 
                 if not is_simu:
                     dl1_container.ucts_time = 0
