@@ -8,7 +8,7 @@ def log_gaussian(x, mean, sigma):
     Parameters
     ----------
     x: float or array-like
-        Value at which the log gaussian is evaluated 
+        Value at which the log gaussian is evaluated
     mean: float
         Central value of the normal distribution
     sigma: float
@@ -35,7 +35,7 @@ def log_gaussian2d(size, x, y, x_cm, y_cm, width, length, psi):
     size: float
         Integral of the 2D Gaussian
     x, y: float or array-like
-        Position at which the log gaussian is evaluated 
+        Position at which the log gaussian is evaluated
     x_cm, y_cm: float
         Center of the 2D Gaussian
     width, length: float
