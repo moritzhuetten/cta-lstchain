@@ -153,6 +153,19 @@ def get_dl1(
 
             # Fill container
             dl1_container.fill_hillas(hillas)
+            dl1_container.fill_hillas(hillas)
+
+            dl1_container.set_timing_features(camera_geometry[signal_pixels],
+                                              image[signal_pixels],
+                                              peak_time[signal_pixels],
+                                              hillas)
+            dl1_container.set_leakage(camera_geometry, image, signal_pixels)
+            dl1_container.set_concentration(camera_geometry, image, hillas)
+            dl1_container.n_pixels = n_pixels
+            dl1_container.n_islands = num_islands
+            dl1_container.set_telescope_info(subarray, telescope_id)
+
+            dl1_container.log_intensity = np.log10(dl1_container.intensity)
 
             if 'lh_fit_config' in config.keys():
                 # Re-evaluate the DL1 parameters using a likelihood
@@ -187,16 +200,6 @@ def get_dl1(
             dl1_container.width = width
             dl1_container.length = length
             dl1_container.wl = dl1_container.width / dl1_container.length
-
-            dl1_container.set_timing_features(camera_geometry[signal_pixels],
-                                              image[signal_pixels],
-                                              peak_time[signal_pixels],
-                                              hillas)
-            dl1_container.set_leakage(camera_geometry, image, signal_pixels)
-            dl1_container.set_concentration(camera_geometry, image, hillas)
-            dl1_container.n_pixels = n_pixels
-            dl1_container.n_islands = num_islands
-            dl1_container.log_intensity = np.log10(dl1_container.intensity)
 
     # We set other fields which still make sense for a non-parametrized
     # image:
