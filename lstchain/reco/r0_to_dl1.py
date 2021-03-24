@@ -70,8 +70,6 @@ __all__ = [
 cleaning_method = tailcuts_clean
 
 
-
-
 def get_dl1(
         calibrated_event,
         subarray,
@@ -153,7 +151,6 @@ def get_dl1(
 
             # Fill container
             dl1_container.fill_hillas(hillas)
-            dl1_container.fill_hillas(hillas)
 
             dl1_container.set_timing_features(camera_geometry[signal_pixels],
                                               image[signal_pixels],
@@ -200,6 +197,7 @@ def get_dl1(
             dl1_container.width = width
             dl1_container.length = length
             dl1_container.wl = dl1_container.width / dl1_container.length
+            dl1_container.area = dl1_container.width * dl1_container.length
 
     # We set other fields which still make sense for a non-parametrized
     # image:
@@ -459,10 +457,11 @@ def r0_to_dl1(
             metadata=metadata,
         )
     lhfit_args = {}
-    if ('lh_fit_config' in config.keys()):
+    if 'lh_fit_config' in config.keys():
         lhfit_args = {
-        "pulse_template": NormalizedPulseTemplate.load(config['lh_fit_config']['pulse_template_location']),
-        "is_simu": is_simu
+            "pulse_template": NormalizedPulseTemplate.load(
+                config['lh_fit_config']['pulse_template_location']),
+            "is_simu": is_simu
         }
 
     with HDF5TableWriter(

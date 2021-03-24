@@ -119,6 +119,10 @@ class DL1ParametersContainer(Container):
 
     lhfit_call_status = Field(-10, "Status of the processing of the event "
                               "by the LH fit method")
+    intensity_lhfit = Field(np.float64(np.nan), 'fitted intensity')
+    log_intensity_lhfit = Field(np.float64(np.nan), 'log of total fitted intensity')
+    t_68 = Field(np.nan, 'Time gradient times length')
+    area = Field(u.Quantity(np.nan, u.deg**2), '', unit=u.deg**2)
 
     # info not available in data
     #num_trig_pix = Field(None, "Number of trigger groups (sectors) listed")

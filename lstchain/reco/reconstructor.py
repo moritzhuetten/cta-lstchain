@@ -724,6 +724,9 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         container.intercept = self.end_parameters['t_cm']
 
         container.wl = container.width / container.length
+        container.intensity_lhfit = self.end_parameters['charge']
+        container.log_intensity_lhfit = np.log10(container.intensity_lhfit)
+        container.t_68 = container.length.value * container.time_gradient
 
         return container
 
