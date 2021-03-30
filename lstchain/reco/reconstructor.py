@@ -26,8 +26,8 @@ class DL0Fitter(ABC):
     """
 
     def __init__(self, waveform, error, sigma_s, geometry, dt, n_samples,
-                 start_parameters, template, gain=1, is_high_gain=0,
-                 baseline=0, crosstalk=0, sigma_space=4, sigma_time=3,
+                 start_parameters, template, is_high_gain=0,
+                 crosstalk=0, sigma_space=4, sigma_time=3,
                  time_before_shower=10, time_after_shower=50,
                  bound_parameters=None):
         """
@@ -55,12 +55,8 @@ class DL0Fitter(ABC):
             template: NormalizedPulseTemplate
                 Template of the response of the pixel to a photo-electron
                 Can contain two templates for high and low gain
-            gain: float array
-                Selected gain in each pixel
             is_high_gain: boolean array
                 Identify pixel with high gain selected
-            baseline: float array
-                Remaining baseline in each pixel
             crosstalk: float array
                 Probability of a photo-electron to interact twice in a pixel
             sigma_space: float
@@ -112,9 +108,7 @@ class DL0Fitter(ABC):
         self.correlation_matrix = None
 
         self.mask_pixel, self.mask_time = self.clean_data()
-        self.gain = gain[self.mask_pixel]
         self.is_high_gain = is_high_gain[self.mask_pixel]
-        self.baseline = baseline[self.mask_pixel]
         self.sigma_s = sigma_s[self.mask_pixel]
         self.crosstalk = crosstalk[self.mask_pixel]
 
@@ -584,13 +578,13 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         v: float
             Velocity of the evolution of the signal over the camera
         """
-        def array_times_template_part(array, ti, template, gain_type):
-            return array[..., None] * template(ti, gain=gain_type)
+        def array_times_template_part(ti, template, gain_type):
+            return template(ti, gain=gain_type)
 
-        def array_times_template(array, ti, template, is_high_gain):
-            return (array_times_template_part(array, ti, template, 'HG').T
+        def array_times_template(ti, template, is_high_gain):
+            return (array_times_template_part(ti, template, 'HG').T
                     * is_high_gain
-                    + array_times_template_part(array, ti, template, 'LG').T
+                    + array_times_template_part(ti, template, 'LG').T
                     * (~is_high_gain)).T
 
         dx = (self.pix_x - x_cm)
@@ -651,14 +645,14 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         # Compute the Gaussian term in the pixel likelihood for
         # low luminosity pixels
-        signal = self.data - self.baseline[..., None]
+        signal = self.data
 
         mean = (photo_peaks
-                * array_times_template(self.gain[mask_LL], t[mask_LL],
+                * array_times_template(t[mask_LL],
                                        self.template,
                                        self.is_high_gain[mask_LL])[..., None])
         sigma_n = (photo_peaks
-                   * (array_times_template(self.sigma_s[mask_LL], t[mask_LL],
+                   * (array_times_template(t[mask_LL],
                                            self.template,
                                            self.is_high_gain[mask_LL]
                                            )**2)[..., None])
@@ -670,12 +664,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # high luminosity pixels
         if np.any(~mask_LL):
             mu_hat = ((mu[~mask_LL] / (1-self.crosstalk[~mask_LL]))[..., None]
-                      * array_times_template(self.gain[~mask_LL], t[~mask_LL],
+                      * array_times_template(t[~mask_LL],
                                              self.template,
                                              self.is_high_gain[~mask_LL]))
             sigma_hat = (((mu[~mask_LL]
                            / np.power(1-self.crosstalk[~mask_LL], 3))[..., None]
-                         * array_times_template(self.gain[~mask_LL], t[~mask_LL],
+                         * array_times_template(t[~mask_LL],
                                                 self.template,
                                                 self.is_high_gain[~mask_LL])**2))
             sigma_hat = np.sqrt((self.error[~mask_LL]**2) + sigma_hat)
@@ -756,7 +750,6 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
         cam_display = display_array_camera(image,
                                            camera_geometry=self.geometry)
-
         if init:
             params = self.start_parameters
         else:
@@ -982,14 +975,11 @@ class NormalizedPulseTemplate:
                        amplitude_HG_err=dhg, amplitude_LG_err=dlg)
 
     @staticmethod
-    def _normalize(amplitude, error):
+    def _normalize(time, amplitude, error):
         """
-        Normalize the pulse template.
+        Normalize the pulse template in p.e/ns.
         """
-        if abs(np.min(amplitude)) <= abs(np.max(amplitude)):
-            normalization = np.max(amplitude)
-        else:
-            normalization = np.min(amplitude)
+        normalization = np.sum(amplitude)*(np.max(time)-np.min(time))/len(time)
         return amplitude/normalization, error/normalization
 
     def _interpolate(self):
@@ -1003,10 +993,10 @@ class NormalizedPulseTemplate:
         amplitude of the template versus time,
         for the high and low gain channels.
         """
-        self.amplitude_HG, self.amplitude_HG_err = self._normalize(
+        self.amplitude_HG, self.amplitude_HG_err = self._normalize(self.time,
                                                          self.amplitude_HG,
                                                          self.amplitude_HG_err)
-        self.amplitude_LG, self.amplitude_LG_err = self._normalize(
+        self.amplitude_LG, self.amplitude_LG_err = self._normalize(self.time,
                                                          self.amplitude_LG,
                                                          self.amplitude_LG_err)
         return {"HG": interp1d(self.time, self.amplitude_HG, kind='cubic',

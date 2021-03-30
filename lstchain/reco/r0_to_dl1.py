@@ -245,31 +245,15 @@ def get_dl1_lh_fit(
     is_simu = False if dl1_container["mc_energy"] is None else True
     """
     if is_simu:
-        waveform = calibrated_event.r0.tel[telescope_id].waveform
-        n_channels, n_pixels, n_samples = waveform.shape
-        baseline = np.atleast_3d(calibrated_event.mc.tel[telescope_id].pedestal) / n_samples
-        flat_field = 1 / calibrated_event.mc.tel[telescope_id].dc_to_pe
+        waveform = calibrated_event.r1.tel[telescope_id].waveform
+        n_pixels, n_samples = waveform.shape
     else:
         waveform = calibrated_event.r1.tel[telescope_id].waveform
-        n_channels, n_pixels, n_samples = waveform.shape
-        baseline = np.atleast_3d(calibrated_event.mon.tel[telescope_id].pedestal['charge_mean']) / n_samples
-        flat_field = calibrated_event.mon.tel[telescope_id].flatfield['relative_gain_mean']
-    waveform = (waveform - baseline)
+        n_pixels, n_samples = waveform.shape
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
-    flat_field = flat_field / np.mean(flat_field, axis=-1)[:, None]
-
     mask_high = (selected_gains == 0)
-
-    waveform = waveform[0] * mask_high[:, None] + waveform[1] * (~mask_high[:, None])
-    error = None #np.ones(waveform.shape) * 0.00001
-
-    gain_low = np.ones(n_pixels) * lh_fit_config['gain_low']
-    gain_high = np.ones(n_pixels) * lh_fit_config['gain_high']
-    gain = np.array([gain_high, gain_low]) * flat_field
-
-    gain = gain[0] * mask_high + gain[1] * (~mask_high)
-    sigma_s = np.ones(n_pixels) * lh_fit_config['sigma_s'] * gain
-    baseline = np.zeros(n_pixels)
+    error = None
+    sigma_s = np.ones(n_pixels) * lh_fit_config['sigma_s']
     crosstalk = np.ones(n_pixels) * lh_fit_config['crosstalk']
 
     v = dl1_container.time_gradient
@@ -324,8 +308,8 @@ def get_dl1_lh_fit(
                                     geometry=geometry,
                                     dt=1, n_samples=n_samples,
                                     template=normalized_pulse_template,
-                                    gain=gain, is_high_gain=mask_high,
-                                    baseline=baseline, crosstalk=crosstalk,
+                                    is_high_gain=mask_high,
+                                    crosstalk=crosstalk,
                                     sigma_space=lh_fit_config['sigma_space'],
                                     sigma_time=lh_fit_config['sigma_time'],
                                     time_before_shower=lh_fit_config['time_before_shower'],
@@ -499,7 +483,6 @@ def r0_to_dl1(
         logger.info(f"USING FILTERS: {writer._h5file.filters}")
 
         for i, event in enumerate(source):
-
             if i % 100 == 0:
                 logger.info(i)
 
