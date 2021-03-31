@@ -167,14 +167,13 @@ def get_dl1(
             if 'lh_fit_config' in config.keys():
                 # Re-evaluate the DL1 parameters using a likelihood
                 # minimization method
-                if (dl1_container['n_pixels'] is not 0
+                if (dl1_container['n_pixels'] > 0
                         and (lhfit_args["is_simu"]
                              or dl1_container['n_pixels'] < 1825)):
                     try:
                         get_dl1_lh_fit(calibrated_event,
                                        camera_geometry,
                                        telescope_id,
-                                       is_simu=lhfit_args["is_simu"],
                                        normalized_pulse_template=lhfit_args["pulse_template"],
                                        dl1_container=dl1_container,
                                        custom_config=config)
@@ -188,7 +187,7 @@ def get_dl1(
                 else:
                     dl1_container.lhfit_call_status = 0
             else:
-                dl1_container.lhfit_call_status = None
+                dl1_container.lhfit_call_status = -10
 
             # convert ctapipe's width and length (in m) to deg:
             foclen = subarray.tel[telescope_id].optics.equivalent_focal_length
@@ -210,7 +209,6 @@ def get_dl1_lh_fit(
     calibrated_event,
     geometry,
     telescope_id,
-    is_simu,
     dl1_container,
     normalized_pulse_template,
     custom_config={}):
@@ -231,25 +229,15 @@ def get_dl1_lh_fit(
     telescope_id: `int`
     dl1_container: DL1ParametersContainer
     normalized_pulse_template: NormalizedPulseTemplate
-    is_simu: `bool`
-    custom_config: path to a configuration file
-                   Contains calibration information and fitting configuration
 
     Returns
     -------
     DL1ParametersContainer
     """
     lh_fit_config = custom_config['lh_fit_config']
-    """
-    pass it or use :
-    is_simu = False if dl1_container["mc_energy"] is None else True
-    """
-    if is_simu:
-        waveform = calibrated_event.r1.tel[telescope_id].waveform
-        n_pixels, n_samples = waveform.shape
-    else:
-        waveform = calibrated_event.r1.tel[telescope_id].waveform
-        n_pixels, n_samples = waveform.shape
+
+    waveform = calibrated_event.r1.tel[telescope_id].waveform
+    n_pixels, n_samples = waveform.shape
     selected_gains = calibrated_event.r1.tel[telescope_id].selected_gain_channel
     mask_high = (selected_gains == 0)
     error = None

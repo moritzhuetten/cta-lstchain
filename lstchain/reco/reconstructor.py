@@ -652,7 +652,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                                        self.template,
                                        self.is_high_gain[mask_LL])[..., None])
         sigma_n = (photo_peaks
-                   * (array_times_template(t[mask_LL],
+                   * (self.sigma_s[mask_LL][..., None]*array_times_template(t[mask_LL],
                                            self.template,
                                            self.is_high_gain[mask_LL]
                                            )**2)[..., None])
