@@ -1,0 +1,15 @@
+name: Generate Documentation
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Sphinx Build
+      uses: ammaraskar/sphinx-action@0.4
+      with:
+        docs-folder: "docs/"
+        pre-build-command: pip install sphinx
+        build-command: "sphinx-build -b html . _build"
+
