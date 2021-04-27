@@ -113,6 +113,11 @@ parser.add_argument(
     '--max-events', type=int,
     help='Maximum number of events to be processed.',
 )
+parser.add_argument('--logger-level', '-l', action='store',
+                    dest='log_level',
+                    help='',
+                    default=None
+                    )
 
 args = parser.parse_args()
 
@@ -126,6 +131,8 @@ def main():
         sys.exit(1)
 
     log.setLevel(logging.INFO)
+    if args.log_level is not None:
+        log.setLevel(args.log_level)
     handler = logging.StreamHandler()
     logging.getLogger().addHandler(handler)
 

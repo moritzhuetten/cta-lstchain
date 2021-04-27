@@ -119,6 +119,8 @@ class DL1ParametersContainer(Container):
 
     lhfit_call_status = Field(-10, "Status of the processing of the event "
                               "by the LH fit method")
+    lhfit_goodness_of_fit = Field(np.nan, "")
+    lhfit_TS = Field(np.float64(np.nan), "")
     intensity_lhfit = Field(np.float64(np.nan), 'fitted intensity')
     log_intensity_lhfit = Field(np.float64(np.nan), 'log of total fitted intensity')
     t_68 = Field(np.nan, 'Time gradient times length')

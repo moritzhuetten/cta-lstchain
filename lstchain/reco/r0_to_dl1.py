@@ -165,27 +165,26 @@ def get_dl1(
             dl1_container.log_intensity = np.log10(dl1_container.intensity)
 
             if 'lh_fit_config' in config.keys():
+                if lhfit_args["is_simu"] or (calibrated_event.trigger.event_type == EventType.SUBARRAY):
                 # Re-evaluate the DL1 parameters using a likelihood
                 # minimization method
-                if (dl1_container['n_pixels'] > 0
-                        and (lhfit_args["is_simu"]
-                             or dl1_container['n_pixels'] < 1825)):
-                    try:
-                        get_dl1_lh_fit(calibrated_event,
-                                       camera_geometry,
-                                       telescope_id,
-                                       normalized_pulse_template=lhfit_args["pulse_template"],
-                                       dl1_container=dl1_container,
-                                       custom_config=config)
-                        dl1_container.lhfit_call_status = 1
-                    except Exception as err:
-                        dl1_container.lhfit_call_status = -1
-                        logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
-                        logger.exception(err.__class__)
-                        logger.exception(err)
-                        raise
-                else:
-                    dl1_container.lhfit_call_status = 0
+                    if dl1_container['n_pixels'] > 0:
+                        try:
+                            get_dl1_lh_fit(calibrated_event,
+                                           camera_geometry,
+                                           telescope_id,
+                                           normalized_pulse_template=lhfit_args["pulse_template"],
+                                           dl1_container=dl1_container,
+                                           custom_config=config)
+                            dl1_container.lhfit_call_status = 1
+                        except Exception as err:
+                            dl1_container.lhfit_call_status = -1
+                            logger.exception("Unexpected error encountered in : get_dl1_lh_fit()")
+                            logger.exception(err.__class__)
+                            logger.exception(err)
+                            raise
+                    else:
+                        dl1_container.lhfit_call_status = 0
             else:
                 dl1_container.lhfit_call_status = -10
 
@@ -260,7 +259,8 @@ def get_dl1_lh_fit(
                         'v': np.abs(v),
                         'psi': psi,
                         'width': dl1_container.width.to(u.m).value,
-                        'length': dl1_container.length.to(u.m).value}
+                        'length': dl1_container.length.to(u.m).value
+                        }
 
     if start_parameters['width'] <= 0.0:
         start_parameters['width'] = 0.00001
@@ -280,13 +280,14 @@ def get_dl1_lh_fit(
                                  geometry.pix_x.to(u.m).value.max()),
                         'y_cm': (geometry.pix_y.to(u.m).value.min(),
                                  geometry.pix_y.to(u.m).value.max()),
-                        'charge': (dl1_container.intensity * 0.01,
+                        'charge': (dl1_container.intensity * 0.1,
                                    dl1_container.intensity * 10),
                         't_cm': (-10, t_max + 10),
                         'v': (v_min, v_max),
-                        'psi': (-np.pi, np.pi),
-                        'width': (0.00001, r_max),
-                        'length': (0.00001, r_max), }
+                        'psi': (-np.pi*1.2, np.pi*1.2),
+                        'width': (0.001, r_max),
+                        'length': (0.001, r_max)
+                        }
 
     try:
         fitter = TimeWaveformFitter(waveform=waveform,

@@ -63,4 +63,3 @@ def log_gaussian2d(size, x, y, x_cm, y_cm, width, length, psi):
     log_pdf += np.log(norm) + np.log(size)
 
     return log_pdf
-
