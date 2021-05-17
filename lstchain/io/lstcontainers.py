@@ -117,9 +117,10 @@ class DL1ParametersContainer(Container):
     trigger_time = Field(None, "trigger time")
     event_type = Field(None, "event type")
 
+    rl = Field(np.nan, "main axis asymmetry factor", type=float)
     lhfit_call_status = Field(-10, "Status of the processing of the event "
                               "by the LH fit method")
-    lhfit_goodness_of_fit = Field(np.nan, "")
+    lhfit_goodness_of_fit = Field(np.nan, "", type=float)
     lhfit_TS = Field(np.float64(np.nan), "")
     intensity_lhfit = Field(np.float64(np.nan), 'fitted intensity')
     log_intensity_lhfit = Field(np.float64(np.nan), 'log of total fitted intensity')

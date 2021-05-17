@@ -259,34 +259,43 @@ def get_dl1_lh_fit(
                         'v': np.abs(v),
                         'psi': psi,
                         'width': dl1_container.width.to(u.m).value,
-                        'length': dl1_container.length.to(u.m).value
+                        'length': dl1_container.length.to(u.m).value,
+                        'rl': 1.0
                         }
 
-    if start_parameters['width'] <= 0.0:
-        start_parameters['width'] = 0.00001
-    if start_parameters['length'] <= 0.0:
-        start_parameters['length'] = 0.00001
+    if start_parameters['width'] <= 0.02:
+        start_parameters['width'] = 0.02
+    if start_parameters['length'] <= 0.02:
+        start_parameters['length'] = 0.02
     if np.isnan(start_parameters['t_cm']):
         start_parameters['t_cm'] = 0.
     if np.isnan(start_parameters['v']):
         start_parameters['v'] = 40
 
     t_max = n_samples * 1
-    d_min = (np.sqrt(geometry.pix_area.to(u.m**2).value) / 2).min()
-    v_min, v_max = 0,  t_max / d_min
+    v_min, v_max = 0,  max(2*start_parameters['v'], 50)
     r_max = np.sqrt(geometry.pix_x**2 + geometry.pix_y**2).to(u.m).value.max()
 
-    bound_parameters = {'x_cm': (geometry.pix_x.to(u.m).value.min(),
-                                 geometry.pix_x.to(u.m).value.max()),
-                        'y_cm': (geometry.pix_y.to(u.m).value.min(),
-                                 geometry.pix_y.to(u.m).value.max()),
-                        'charge': (dl1_container.intensity * 0.1,
-                                   dl1_container.intensity * 10),
+    bound_parameters = {'x_cm': (dl1_container.x.to(u.m).value
+                                 - 1.0 * dl1_container.length.to(u.m).value,
+                                 dl1_container.x.to(u.m).value
+                                 + 1.0 * dl1_container.length.to(u.m).value),
+                        'y_cm': (dl1_container.y.to(u.m).value
+                                 - 1.0 * dl1_container.length.to(u.m).value,
+                                 dl1_container.y.to(u.m).value
+                                 + 1.0 * dl1_container.length.to(u.m).value),
+                        'charge': (dl1_container.intensity * 0.25,
+                                   dl1_container.intensity * 4.0),
                         't_cm': (-10, t_max + 10),
                         'v': (v_min, v_max),
-                        'psi': (-np.pi*1.2, np.pi*1.2),
-                        'width': (0.001, r_max),
-                        'length': (0.001, r_max)
+                        'psi': (-np.pi*2.0, np.pi*2.0),
+                        'width': (0.001,
+                                  min(2 * dl1_container.length.to(u.m).value
+                                      , r_max)),
+                        'length': (0.001,
+                                   min(2 * dl1_container.length.to(u.m).value
+                                       , r_max)),
+                        'rl': (0.2, 5.0)
                         }
 
     try:
@@ -309,21 +318,24 @@ def get_dl1_lh_fit(
 
         fitter.predict(dl1_container, verbose=lh_fit_config['verbose'],
                        ncall=lh_fit_config['ncall'])
-
         if lh_fit_config['verbose']:
             image = calibrated_event.dl1.tel[telescope_id].image
             axes = fitter.plot_event(image, init=True)
-            axes.axes.get_figure().savefig('event/start.png')
-
+            axes.axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'start.png')
             axes = fitter.plot_waveforms(image)
-            axes.get_figure().savefig('event/waveforms.png')
-
+            axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'waveforms.png')
             axes = fitter.plot_event(image)
-            axes.axes.get_figure().savefig('event/end.png')
+            axes.axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'end.png')
+            axes = fitter.plot_event(image, ellipsis=False)
+            axes.axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'image.png')
+            axes = fitter.plot_residual(image)
+            axes.axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'residual.png')
+            axes = fitter.plot_model()
+            axes.axes.get_figure().savefig('event/'+str(dl1_container.event_id)+'model.png')
 
             for params in fitter.start_parameters.keys():
                 axes = fitter.plot_likelihood(params)
-                axes.get_figure().savefig('event/' + params + '.png')
+                axes.get_figure().savefig('event/'+str(dl1_container.event_id) + params + '.png')
             print("event plot produced, press Enter to continue "
                   "or Ctrl+C and Enter to stop")
             input()

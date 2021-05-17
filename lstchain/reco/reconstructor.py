@@ -12,7 +12,7 @@ import astropy.units as u
 
 from ctapipe.reco.reco_algorithms import Reconstructor
 from lstchain.io.lstcontainers import DL1ParametersContainer
-from lstchain.image.pdf import log_gaussian, log_gaussian2d
+from lstchain.image.pdf import log_gaussian, log_gaussian2d, logAsy_gaussian2d
 from lstchain.visualization.camera import display_array_camera
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,8 @@ class DL0Fitter(ABC):
                        'width': '$\sigma_w$ [m]',
                        'length': '$\sigma_l$ [m]',
                        'psi': '$\psi$ [rad]',
-                       'v': '$v$ [m/ns]'
+                       'v': '$v$ [m/ns]',
+                       'rl': 'length asymmetry'
                        }
 
         self.sigma_space = sigma_space
@@ -558,7 +559,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         self.log_factorial = log_factorial
 
     def log_pdf(self, charge, t_cm, x_cm, y_cm, width,
-                length, psi, v):
+                length, psi, v, rl):
         """
             Compute the log likelihood of the model used for a set of input
             parameters.
@@ -589,18 +590,19 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         t = self.times[..., None] - t
         t = t.T
         templates = (self.template(t, 'HG').T * self.is_high_gain
-                    + self.template(t, 'LG').T * (~self.is_high_gain)).T
+                     + self.template(t, 'LG').T * (~self.is_high_gain)).T
 
-
-        log_mu = log_gaussian2d(size=charge * self.pix_area,
-                                x=self.pix_x,
-                                y=self.pix_y,
-                                x_cm=x_cm,
-                                y_cm=y_cm,
-                                width=width,
-                                length=length,
-                                psi=psi)
+        log_mu = logAsy_gaussian2d(size=charge * self.pix_area,
+                                   x=self.pix_x,
+                                   y=self.pix_y,
+                                   x_cm=x_cm,
+                                   y_cm=y_cm,
+                                   width=width,
+                                   length=length,
+                                   psi=psi,
+                                   rl=rl)
         mu = np.exp(log_mu)
+        mu[mu <= 0] = 1e-320
 
         # We reduce the sum by limiting to the poisson term contributing for
         # more than 10^-6. The limits are approximated by 2 broken linear
@@ -644,11 +646,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         # Compute the Gaussian term in the pixel likelihood for
         # low luminosity pixels
         signal = self.data
+        weight = (1.0+np.sqrt((np.abs(signal)/np.nanmax(signal))))
 
         mean = (photo_peaks
                 * templates[mask_LL][..., None])
         sigma_n = (photo_peaks
-                   * (self.sigma_s[mask_LL][..., None]*templates[mask_LL]**2)[..., None])
+                   * ((self.sigma_s[mask_LL][..., None]*templates[mask_LL])**2)[..., None])
         sigma_n = (self.error[mask_LL]**2)[..., None] + sigma_n
         sigma_n = np.sqrt(sigma_n)
         log_gauss = log_gaussian(signal[mask_LL][..., None], mean, sigma_n)
@@ -663,8 +666,8 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                          * templates[~mask_LL]**2))
             sigma_hat = np.sqrt((self.error[~mask_LL]**2) + sigma_hat)
 
-            log_pixel_pdf_HL = log_gaussian(signal[~mask_LL], mu_hat, sigma_hat)
-            n_points_HL = log_pixel_pdf_HL.size
+            log_pixel_pdf_HL = weight[~mask_LL] * log_gaussian(signal[~mask_LL], mu_hat, sigma_hat)
+            n_points_HL = np.sum(weight[~mask_LL])
         else:
             log_pixel_pdf_HL, n_points_HL = np.asarray([0]), 0
 
@@ -673,16 +676,16 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         pixel_pdf_LL = np.sum(np.exp(log_pixel_pdf_LL), axis=-1)
 
         mask = (pixel_pdf_LL <= 0)
-        pixel_pdf_LL = pixel_pdf_LL[~mask]
-        n_points_LL = pixel_pdf_LL.size
-
-        log_pdf = ((np.log(pixel_pdf_LL).sum() + log_pixel_pdf_HL.sum())
+        pixel_pdf_LL[mask] = 1e-320
+        n_points_LL = np.sum(weight[mask_LL])
+        log_pixel_pdf_LL = weight[mask_LL] * np.log(pixel_pdf_LL)
+        log_pdf = ((log_pixel_pdf_LL.sum() + log_pixel_pdf_HL.sum())
                    / (n_points_LL + n_points_HL))
 
         return log_pdf
 
-    def compute_Goodness_of_Fit(self, charge, t_cm, x_cm, y_cm, width,
-                length, psi, v):
+    def compute_goodness_of_fit(self, charge, t_cm, x_cm, y_cm, width,
+                                length, psi, v, rl):
 
         def array_times_template_part(ti, template, gain_type):
             return template(ti, gain=gain_type)
@@ -701,15 +704,17 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         t = self.times[..., None] - t
         t = t.T
 
-        log_mu = log_gaussian2d(size=charge * self.pix_area,
-                                x=self.pix_x,
-                                y=self.pix_y,
-                                x_cm=x_cm,
-                                y_cm=y_cm,
-                                width=width,
-                                length=length,
-                                psi=psi)
+        log_mu = logAsy_gaussian2d(size=charge * self.pix_area,
+                                   x=self.pix_x,
+                                   y=self.pix_y,
+                                   x_cm=x_cm,
+                                   y_cm=y_cm,
+                                   width=width,
+                                   length=length,
+                                   psi=psi,
+                                   rl=rl)
         mu = np.exp(log_mu)
+        mu[mu<=0] = 1e-320
 
         # We reduce the sum by limiting to the poisson term contributing for
         # more than 10^-6. The limits are approximated by 2 broken linear
@@ -790,17 +795,12 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         pixel_pdf_LL = np.sum(np.exp(log_pixel_pdf_LL), axis=-1)
 
         mask = (pixel_pdf_LL <= 0)
-        pixel_pdf_LL = pixel_pdf_LL[~mask]
+        pixel_pdf_LL[mask] = 1e-320
         n_points_LL = pixel_pdf_LL.size
-
-
-
-
 
         signal = mu[...,None] * array_times_template(t,
                                        self.template,
                                        self.is_high_gain)
-
 
         log_gauss_expected = log_gaussian(signal[mask_LL][..., None], mean, sigma_n)
 
@@ -813,7 +813,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         log_pixel_pdf_LL_expected = log_poisson + log_gauss_expected
         pixel_pdf_LL_expected = np.sum(np.exp(log_pixel_pdf_LL_expected), axis=-1)
-        pixel_pdf_LL_expected = pixel_pdf_LL_expected[~mask]
+        pixel_pdf_LL_expected[pixel_pdf_LL_expected<=0] = 1e-320
 
         n_dof = (n_points_LL + n_points_HL) - 8
         gof = (np.sum(np.log(pixel_pdf_LL) - np.log(pixel_pdf_LL_expected))+np.sum(log_pixel_pdf_HL - log_pixel_pdf_HL_expected))/np.sqrt(2*n_dof)
@@ -831,14 +831,15 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         """
 
         self.fit(**kwargs)
-        GoF = self.compute_Goodness_of_Fit(charge=self.end_parameters['charge'],
+        GoF = self.compute_goodness_of_fit(charge=self.end_parameters['charge'],
                                            t_cm=self.end_parameters['t_cm'],
                                            x_cm=self.end_parameters['x_cm'],
                                            y_cm=self.end_parameters['y_cm'],
                                            width=self.end_parameters['width'],
                                            length=self.end_parameters['length'],
                                            psi=self.end_parameters['psi'],
-                                           v=self.end_parameters['v']
+                                           v=self.end_parameters['v'],
+                                           rl=self.end_parameters['rl']
                                            )
         container.lhfit_goodness_of_fit = GoF
         container.lhfit_TS = self.fcn
@@ -851,11 +852,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             self.end_parameters['psi'] -= 2 * np.pi
         if self.end_parameters['psi'] < -np.pi:
             self.end_parameters['psi'] += 2 * np.pi
-        container.psi = self.end_parameters['psi'] * u.rad  # TODO turn psi angle when length < width
-        container.length = max(self.end_parameters['length'],
-                               self.end_parameters['width']) * u.m
-        container.width = min(self.end_parameters['length'],
-                              self.end_parameters['width']) * u.m
+        container.psi = self.end_parameters['psi'] * u.rad
+        container.length = ((1.0+self.end_parameters['rl'])
+                            * self.end_parameters['length'] / 2.0) * u.m
+        container.width = self.end_parameters['width'] * u.m
 
         container.time_gradient = self.end_parameters['v']
         container.intercept = self.end_parameters['t_cm']
@@ -864,13 +864,14 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
         container.intensity_lhfit = self.end_parameters['charge']
         container.log_intensity_lhfit = np.log10(container.intensity_lhfit)
         container.t_68 = container.length.value * container.time_gradient
+        container.rl = self.end_parameters['rl']
 
         return container
 
     def compute_bounds(self):
         """Method for the computation of the bounds for the fit."""
 
-    def plot_event(self, image, n_sigma=3, init=False):
+    def plot_event(self, image, n_sigma=3, init=False, ellipsis=True):
         """
             Plot the image of the event in the camera along with the extracted
             ellipsis before or after the fitting procedure.
@@ -910,16 +911,84 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
 
         cam_display.axes.add_patch(direction_arrow)
         """
+        if ellipsis:
+            cam_display.add_ellipse(centroid=(params['x_cm'],
+                                              params['y_cm']),
+                                    width=n_sigma * params['width'],
+                                    length=length,
+                                    angle=psi,
+                                    linewidth=6, color='r', linestyle='--',
+                                    label='{} $\sigma$ contour'.format(n_sigma))
+            cam_display.axes.legend(loc='best')
+        if init:
+            cam_display.highlight_pixels(self.mask_pixel, color='r')
 
-        cam_display.add_ellipse(centroid=(params['x_cm'],
-                                          params['y_cm']),
-                                width=n_sigma * params['width'],
-                                length=length,
-                                angle=psi,
-                                linewidth=6, color='r', linestyle='--',
-                                label='{} $\sigma$ contour'.format(n_sigma))
+        return cam_display
+
+    def plot_residual(self, image):
+        """
+
+
+        Parameters
+        ----------
+        image:
+            Distribution of signal for the event in number of p.e.
+        Returns
+        -------
+        cam_display: ctapipe.visualization.CameraDisplay
+            Camera image using matplotlib
+
+        """
+
+        params = self.end_parameters
+        log_mu = logAsy_gaussian2d(size=params['charge']
+                                * self.geometry.pix_area.to(u.m**2).value,
+                                x=self.geometry.pix_x.value,
+                                y=self.geometry.pix_y.value,
+                                x_cm=params['x_cm'],
+                                y_cm=params['y_cm'],
+                                width=params['width'],
+                                length=params['length'],
+                                psi=params['psi'],rl=params['rl'])
+        mu = np.exp(log_mu)
+        residual = image - mu
+
+        cam_display = display_array_camera(residual,
+                                           camera_geometry=self.geometry)
+
         cam_display.axes.legend(loc='best')
-        cam_display.highlight_pixels(self.mask_pixel, color='r')
+
+        return cam_display
+
+    def plot_model(self):
+        """
+        Parameters
+        ----------
+        image:
+            Distribution of signal for the event in number of p.e.
+        Returns
+        -------
+        cam_display: ctapipe.visualization.CameraDisplay
+            Camera image using matplotlib
+
+        """
+
+        params = self.end_parameters
+        log_mu = logAsy_gaussian2d(size=params['charge']
+                                * self.geometry.pix_area.to(u.m**2).value,
+                                x=self.geometry.pix_x.value,
+                                y=self.geometry.pix_y.value,
+                                x_cm=params['x_cm'],
+                                y_cm=params['y_cm'],
+                                width=params['width'],
+                                length=params['length'],
+                                psi=params['psi'],rl=params['rl'])
+        mu = np.exp(log_mu)
+
+        cam_display = display_array_camera(mu,
+                                           camera_geometry=self.geometry)
+
+        cam_display.axes.legend(loc='best')
 
         return cam_display
 
@@ -943,7 +1012,7 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
             Object filled with the figure
         """
         image = image[self.mask_pixel]
-        n_pixels = min(15, len(image))
+        n_pixels = min(20, len(image))
         pixels = np.argsort(image)[-n_pixels:]
         dx = (self.pix_x[pixels] - self.end_parameters['x_cm'])
         dy = (self.pix_y[pixels] - self.end_parameters['y_cm'])
@@ -972,10 +1041,10 @@ class TimeWaveformFitter(DL0Fitter, Reconstructor):
                  + ' : {:.2f} [ns]'.format(self.end_parameters['t_cm']))
         label += ('\n' + self.labels['v']
                   + ' : {:.2f} [m/ns]'.format(self.end_parameters['v']))
-        axes.plot(fitted_times, long_pix, color='w',
+        axes.plot(fitted_times, long_pix, color='r',
                   label=label)
         axes.legend(loc='best')
-        axes.get_figure().colorbar(label='[LSB]', ax=axes, mappable=M)
+        axes.get_figure().colorbar(label='[p.e.]', ax=axes, mappable=M)
 
         return axes
 
