@@ -149,8 +149,10 @@ def create_hdu_index_hdu(
             try:
                 hdu_list = fits.open(filepath)
                 evt_hdr = hdu_list["EVENTS"].header
-                gti_hdr = hdu_list["GTI"].header
-                pnt_hdr = hdu_list["POINTING"].header
+
+                # just test they are here
+                hdu_list["GTI"].header
+                hdu_list["POINTING"].header
             except Exception:
                 log.error(f"fits corrupted for file {file}")
                 continue
@@ -200,7 +202,7 @@ def create_hdu_index_hdu(
             t_edisp["HDU_NAME"] = edisp_hdr["EXTNAME"]
 
             hdu_index_tables.append(t_edisp)
-        except KeyError:
+        else:
             log.error(
                 f"Run {t_events['OBS_ID']} does not contain HDU 'ENERGY DISPERSION'"
             )
@@ -214,7 +216,7 @@ def create_hdu_index_hdu(
             t_aeff["HDU_NAME"] = aeff_hdr["EXTNAME"]
 
             hdu_index_tables.append(t_aeff)
-        except KeyError:
+        else:
             log.error(
                 f"Run {t_events['OBS_ID']} does not contain HDU 'EFFECTIVE AREA'"
             )
@@ -228,7 +230,7 @@ def create_hdu_index_hdu(
             t_bkg["HDU_NAME"] = bkg_hdr["EXTNAME"]
 
             hdu_index_tables.append(t_bkg)
-        except KeyError:
+        else:
             log.error(
                 f"Run {t_events['OBS_ID']} does not contain HDU 'BACKGROUND'"
             )
@@ -242,7 +244,7 @@ def create_hdu_index_hdu(
             t_psf["HDU_NAME"] = psf_hdr["EXTNAME"]
 
             hdu_index_tables.append(t_psf)
-        except KeyError:
+        else:
             log.error(
                 f"Run {t_events['OBS_ID']} does not contain HDU 'PSF'"
             )
@@ -311,18 +313,19 @@ def create_event_list(
 
     Parameters
     ----------
-        Data: DL2 data file
-                'astropy.table.QTable'
-        Run: Run number
-                Int
-        Source_name: Name of the source
-                Str
-        Source_pos: Ra/Dec position of the source
-                'astropy.coordinates.SkyCoord'
-        Effective_time: Effective time of triggered events of the run
-                Float
-        Elapsed_time: Total elapsed time of triggered events of the run
-                Float
+    Data: DL2 data file
+            'astropy.table.QTable'
+    Run: Run number
+            Int
+    Source_name: Name of the source
+            Str
+    Source_pos: Ra/Dec position of the source
+            'astropy.coordinates.SkyCoord'
+    Effective_time: Effective time of triggered events of the run
+            Float
+    Elapsed_time: Total elapsed time of triggered events of the run
+            Float
+
     Returns
     -------
         Events HDU:  `astropy.io.fits.BinTableHDU`

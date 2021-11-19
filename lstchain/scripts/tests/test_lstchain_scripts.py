@@ -5,15 +5,20 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import pytest
+import tables
 from astropy import units as u
 from astropy.time import Time
 
 from lstchain.io.io import (
     dl1_params_lstcam_key,
     dl2_params_lstcam_key,
+    dl1_images_lstcam_key,
     get_dataset_keys,
     dl1_params_src_dep_lstcam_key,
 )
+
+from lstchain.io.config import get_standard_config
+import json
 
 
 def find_entry_points(package_name):
@@ -137,7 +142,8 @@ def test_observed_dl1_validity(observed_dl1_files):
 
 def test_lstchain_mc_trainpipe(rf_models):
     assert rf_models["energy"].is_file()
-    assert rf_models["disp"].is_file()
+    assert rf_models["disp_norm"].is_file()
+    assert rf_models["disp_sign"].is_file()
     assert rf_models["gh_sep"].is_file()
 
 
@@ -146,7 +152,8 @@ def test_lstchain_mc_rfperformance(tmp_path, simulated_dl1_file, fake_dl1_proton
     proton_file = fake_dl1_proton_file
     output_dir = tmp_path
     file_model_energy = output_dir / "reg_energy.sav"
-    file_model_disp = output_dir / "reg_disp_vector.sav"
+    file_model_disp_norm = output_dir / "reg_disp_norm.sav"
+    file_model_disp_sign = output_dir / "cls_disp_sign.sav"
     file_model_gh_sep = output_dir / "cls_gh.sav"
 
     run_program(
@@ -164,7 +171,9 @@ def test_lstchain_mc_rfperformance(tmp_path, simulated_dl1_file, fake_dl1_proton
     )
 
     assert file_model_gh_sep.is_file()
-    assert file_model_disp.is_file()
+    # assert file_model_disp.is_file()
+    assert file_model_disp_norm.is_file()
+    assert file_model_disp_sign.is_file()
     assert file_model_energy.is_file()
 
 
@@ -266,6 +275,42 @@ def test_lstchain_observed_dl1_to_dl2(observed_dl2_file):
 
 def test_dl1ab(simulated_dl1ab):
     assert simulated_dl1ab.is_file()
+    with tables.open_file(simulated_dl1ab) as output:
+        assert dl1_images_lstcam_key in output.root
+
+
+def test_dl1ab_no_images(simulated_dl1_file, tmp_path):
+    """Produce a new simulated dl1 file using the dl1ab script."""
+    output_file = tmp_path / "dl1ab_no_images.h5"
+
+    config_path = tmp_path / 'config.json'
+    with config_path.open('w') as f:
+        config = get_standard_config()
+        config['tailcut']["picture_thresh"] = 10
+        config['tailcut']["boundary_thresh"] = 5
+        json.dump(config, f)
+
+    run_program(
+        "lstchain_dl1ab",
+        "-f", simulated_dl1_file,
+        "-o", output_file,
+        "-c", config_path,
+        '--no-image=True',
+    )
+
+    with tables.open_file(output_file, 'r') as output:
+        assert dl1_images_lstcam_key not in output.root
+        assert dl1_params_lstcam_key in output.root
+
+        new_parameters = output.root[dl1_params_lstcam_key][:]
+
+        with tables.open_file(simulated_dl1_file, 'r') as input_file:
+            old_parameters = input_file.root[dl1_params_lstcam_key][:]
+
+            # new cleaning should result in less pixels
+            assert (new_parameters['n_pixels'] <= old_parameters['n_pixels']).all()
+            assert (new_parameters['n_pixels'] < old_parameters['n_pixels']).any()
+            assert (new_parameters['length'] != old_parameters['length']).any()
 
 
 @pytest.mark.private_data
@@ -347,3 +392,5 @@ def test_run_summary(run_summary_path):
     assert "dragon_reference_module_index" in run_summary_table.columns
     assert "dragon_reference_counter" in run_summary_table.columns
     assert "dragon_reference_source" in run_summary_table.columns
+
+    assert (run_summary_table["run_type"] == ["DATA", "ERROR", "DATA"]).all()
