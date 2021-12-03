@@ -40,11 +40,11 @@ setup(
     packages=find_packages(),
     install_requires=[
         'astropy~=4.2',
-        'ctapipe~=0.11.0',
+        'ctapipe~=0.12.0',
         'ctapipe_io_lst~=0.11.1',
         'ctaplot~=0.5.5',
         'eventio>=1.5.1,<2.0.0a0',  # at least 1.1.1, but not 2
-        'gammapy>=0.18',
+        'gammapy~=0.18.0',
         'h5py',
         'joblib',
         'matplotlib>=3.5',
@@ -57,8 +57,6 @@ setup(
         'scikit-learn',
         'tables',
         'toml',
-        'traitlets~=5.0.5',
-        'iminuit~=1.5',
         'pymongo',
         'pyparsing',
         'setuptools_scm',

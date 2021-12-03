@@ -87,6 +87,7 @@ class IRFFITSWriter(Tool):
 
     input_gamma_dl2 = traits.Path(
         help="Input MC gamma DL2 file",
+        allow_none=True,
         exists=True,
         directory_ok=False,
         file_ok=True
@@ -94,6 +95,7 @@ class IRFFITSWriter(Tool):
 
     input_proton_dl2 = traits.Path(
         help="Input MC proton DL2 file",
+        allow_none=True,
         exists=True,
         directory_ok=False,
         file_ok=True
@@ -101,6 +103,7 @@ class IRFFITSWriter(Tool):
 
     input_electron_dl2 = traits.Path(
         help="Input MC electron DL2 file",
+        allow_none=True,
         exists=True,
         directory_ok=False,
         file_ok=True
@@ -108,6 +111,7 @@ class IRFFITSWriter(Tool):
 
     output_irf_file = traits.Path(
         help="IRF output file",
+        allow_none=True,
         directory_ok=False,
         file_ok=True,
         default_value="./irf.fits.gz",

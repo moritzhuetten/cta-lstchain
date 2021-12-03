@@ -31,7 +31,6 @@ from lstchain.image.muon import (
     tag_pix_thr,
 )
 from lstchain.io.io import dl1_params_lstcam_key, dl1_images_lstcam_key
-from lstchain.io.io import read_telescopes_descriptions, read_subarray_description
 from lstchain.visualization import plot_calib
 
 parser = argparse.ArgumentParser()
@@ -119,13 +118,11 @@ def main():
         subarray_info = SubarrayDescription.from_hdf(filename)
         geom = subarray_info.tel[lst1_tel_id].camera.geometry
 
-        subarray = read_subarray_description(filename, subarray_name='LST-1')
-
         images = Table.read(filename, path=dl1_images_lstcam_key)['image']
 
         parameters = pd.read_hdf(filename, key=dl1_params_lstcam_key)
-        telescope_description = read_telescopes_descriptions(filename)[lst1_tel_id]
 
+        telescope_description = subarray_info.tel[lst1_tel_id]
         equivalent_focal_length = telescope_description.optics.equivalent_focal_length
         mirror_area = telescope_description.optics.mirror_area
 
