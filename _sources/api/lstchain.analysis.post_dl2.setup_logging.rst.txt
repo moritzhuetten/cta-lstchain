@@ -1,0 +1,6 @@
+setup_logging
+=============
+
+.. currentmodule:: lstchain.analysis.post_dl2
+
+.. autofunction:: setup_logging

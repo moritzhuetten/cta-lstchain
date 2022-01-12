@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data exploration and visusalisation with pandas &mdash; lstchain 0.8.2.post2.dev83+g9baad47e documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API Docs" href="../lstchain_api/index.html" />
+    <link rel="prev" title="Tutorials" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> lstchain
+          </a>
+              <div class="version">
+                0.8.2.post2.dev83+g9baad47e
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Overview</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contribute.html">How to Contribute</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Data exploration and visusalisation with pandas</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Data-from-the-cta-lstchain-extra-repository-will-be-used-in-this-notebook">Data from the <strong>cta-lstchain-extra</strong> repository will be used in this notebook</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Import-and-data-from-cta-lstchain-extra">Import and data from cta-lstchain-extra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Correlation-matrices">Correlation matrices</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../lstchain_api/index.html">API Docs</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">lstchain</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Tutorials</a> &raquo;</li>
+      <li>Data exploration and visusalisation with pandas</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/data_visualization.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="Data-exploration-and-visusalisation-with-pandas">
+<h1>Data exploration and visusalisation with pandas<a class="headerlink" href="#Data-exploration-and-visusalisation-with-pandas" title="Permalink to this headline">¶</a></h1>
+<p>This is an example notebook to show how to use pandas for quick data exploration and results visualition based on a results hdf5 file.</p>
+<section id="Data-from-the-cta-lstchain-extra-repository-will-be-used-in-this-notebook">
+<h2>Data from the <strong>cta-lstchain-extra</strong> repository will be used in this notebook<a class="headerlink" href="#Data-from-the-cta-lstchain-extra-repository-will-be-used-in-this-notebook" title="Permalink to this headline">¶</a></h2>
+<p>In case you do not have the reposity cloned;</p>
+<p>git clone <a class="reference external" href="https://github.com/cta-observatory/cta-lstchain-extra">https://github.com/cta-observatory/cta-lstchain-extra</a></p>
+<section id="Import-and-data-from-cta-lstchain-extra">
+<h3>Import and data from cta-lstchain-extra<a class="headerlink" href="#Import-and-data-from-cta-lstchain-extra" title="Permalink to this headline">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Assuming you are running the notebook from ~/cta-lstchain/notebooks</span>
+<span class="n">PATH_TO_LSTCHAIN_EXTRA</span> <span class="o">=</span> <span class="s1">&#39;../../cta-lstchain-extra/reco/sample_data/dl1/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="kn">from</span> <span class="nn">IPython.core.display</span> <span class="kn">import</span> <span class="n">display</span><span class="p">,</span> <span class="n">HTML</span>
+<span class="n">display</span><span class="p">(</span><span class="n">HTML</span><span class="p">(</span><span class="s2">&quot;&lt;style&gt;.container { width:98% !important; }&lt;/style&gt;&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area rendered_html docutils container">
+<style>.container { width:98% !important; }</style></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">gammas_table</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_hdf</span><span class="p">(</span><span class="n">PATH_TO_LSTCHAIN_EXTRA</span><span class="o">+</span><span class="s1">&#39;gamma_events_point_tiny.h5&#39;</span><span class="p">)</span>
+<span class="n">protons_table</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_hdf</span><span class="p">(</span><span class="n">PATH_TO_LSTCHAIN_EXTRA</span><span class="o">+</span><span class="s1">&#39;proton_events_tiny.h5&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">gammas_table</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>obs_id</th>
+      <th>event_id</th>
+      <th>log_mc_energy</th>
+      <th>mc_alt</th>
+      <th>mc_az</th>
+      <th>mc_core_x</th>
+      <th>mc_core_y</th>
+      <th>mc_h_first_int</th>
+      <th>mc_type</th>
+      <th>gps_time</th>
+      <th>...</th>
+      <th>mc_az_tel</th>
+      <th>impact</th>
+      <th>mc_x_max</th>
+      <th>time_gradient</th>
+      <th>intercept</th>
+      <th>src_x</th>
+      <th>src_y</th>
+      <th>disp</th>
+      <th>hadroness</th>
+      <th>disp_norm</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>count</th>
+      <td>53386.000000</td>
+      <td>5.338600e+04</td>
+      <td>53386.000000</td>
+      <td>53386.00000</td>
+      <td>53386.000000</td>
+      <td>53386.000000</td>
+      <td>53386.000000</td>
+      <td>53386.000000</td>
+      <td>53386.0</td>
+      <td>5.338600e+04</td>
+      <td>...</td>
+      <td>53386.0</td>
+      <td>53386.000000</td>
+      <td>53386.000000</td>
+      <td>5.338600e+04</td>
+      <td>53386.000000</td>
+      <td>5.338600e+04</td>
+      <td>5.338600e+04</td>
+      <td>53386.000000</td>
+      <td>53386.0</td>
+      <td>53386.000000</td>
+    </tr>
+    <tr>
+      <th>mean</th>
+      <td>11027.225621</td>
+      <td>5.005307e+06</td>
+      <td>1.942175</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>-85.030647</td>
+      <td>-6.025231</td>
+      <td>24381.323851</td>
+      <td>0.0</td>
+      <td>1.445304e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>209.228140</td>
+      <td>243.016315</td>
+      <td>-2.499263e-02</td>
+      <td>7.501868</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>0.512015</td>
+      <td>0.0</td>
+      <td>0.512015</td>
+    </tr>
+    <tr>
+      <th>std</th>
+      <td>657.878752</td>
+      <td>2.881663e+06</td>
+      <td>0.618715</td>
+      <td>0.00000</td>
+      <td>0.000000</td>
+      <td>144.385035</td>
+      <td>185.809033</td>
+      <td>8190.777433</td>
+      <td>0.0</td>
+      <td>1.219079e+05</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>108.722932</td>
+      <td>69.255351</td>
+      <td>3.498411e+01</td>
+      <td>13.831399</td>
+      <td>1.514627e-28</td>
+      <td>8.470409e-22</td>
+      <td>0.256083</td>
+      <td>0.0</td>
+      <td>0.256083</td>
+    </tr>
+    <tr>
+      <th>min</th>
+      <td>10147.000000</td>
+      <td>1.060000e+02</td>
+      <td>0.488904</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>-1077.981934</td>
+      <td>-1498.965942</td>
+      <td>6754.455566</td>
+      <td>0.0</td>
+      <td>1.445077e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>1.251538</td>
+      <td>-20.000000</td>
+      <td>-1.454972e+03</td>
+      <td>-1178.036708</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>0.002000</td>
+      <td>0.0</td>
+      <td>0.002000</td>
+    </tr>
+    <tr>
+      <th>25%</th>
+      <td>10385.000000</td>
+      <td>2.500426e+06</td>
+      <td>1.495644</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>-186.122799</td>
+      <td>-132.039860</td>
+      <td>18699.628906</td>
+      <td>0.0</td>
+      <td>1.445190e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>129.576214</td>
+      <td>195.714279</td>
+      <td>-1.078555e+01</td>
+      <td>5.024158</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>0.308793</td>
+      <td>0.0</td>
+      <td>0.308793</td>
+    </tr>
+    <tr>
+      <th>50%</th>
+      <td>11495.000000</td>
+      <td>5.020252e+06</td>
+      <td>1.834652</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>-83.920982</td>
+      <td>-5.786307</td>
+      <td>22871.404297</td>
+      <td>0.0</td>
+      <td>1.445334e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>194.657316</td>
+      <td>236.666672</td>
+      <td>-2.128057e-15</td>
+      <td>8.478582</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>0.474126</td>
+      <td>0.0</td>
+      <td>0.474126</td>
+    </tr>
+    <tr>
+      <th>75%</th>
+      <td>11681.000000</td>
+      <td>7.505481e+06</td>
+      <td>2.286065</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>15.989897</td>
+      <td>119.391779</td>
+      <td>28295.680176</td>
+      <td>0.0</td>
+      <td>1.445410e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>275.212832</td>
+      <td>282.110817</td>
+      <td>1.087460e+01</td>
+      <td>10.539176</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>0.706576</td>
+      <td>0.0</td>
+      <td>0.706576</td>
+    </tr>
+    <tr>
+      <th>max</th>
+      <td>11715.000000</td>
+      <td>9.999901e+06</td>
+      <td>5.498749</td>
+      <td>1.22173</td>
+      <td>6.283185</td>
+      <td>707.513733</td>
+      <td>1480.202148</td>
+      <td>94513.046875</td>
+      <td>0.0</td>
+      <td>1.445554e+09</td>
+      <td>...</td>
+      <td>0.0</td>
+      <td>1504.107425</td>
+      <td>775.039368</td>
+      <td>1.185533e+03</td>
+      <td>574.001388</td>
+      <td>4.103384e-13</td>
+      <td>-2.892042e-06</td>
+      <td>1.157268</td>
+      <td>0.0</td>
+      <td>1.157268</td>
+    </tr>
+  </tbody>
+</table>
+<p>8 rows × 32 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">protons_table</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>obs_id</th>
+      <th>event_id</th>
+      <th>log_mc_energy</th>
+      <th>mc_alt</th>
+      <th>mc_az</th>
+      <th>mc_core_x</th>
+      <th>mc_core_y</th>
+      <th>mc_h_first_int</th>
+      <th>mc_type</th>
+      <th>gps_time</th>
+      <th>...</th>
+      <th>mc_alt_tel</th>
+      <th>mc_az_tel</th>
+      <th>impact</th>
+      <th>mc_x_max</th>
+      <th>time_gradient</th>
+      <th>intercept</th>
+      <th>src_x</th>
+      <th>src_y</th>
+      <th>disp</th>
+      <th>hadroness</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>count</th>
+      <td>21955.000000</td>
+      <td>2.195500e+04</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.0</td>
+      <td>2.195500e+04</td>
+      <td>...</td>
+      <td>21955.00000</td>
+      <td>21955.0</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>2.195500e+04</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.000000</td>
+      <td>21955.0</td>
+    </tr>
+    <tr>
+      <th>mean</th>
+      <td>11534.561330</td>
+      <td>1.247381e+07</td>
+      <td>2.911804</td>
+      <td>1.220044</td>
+      <td>2.829394</td>
+      <td>-84.203803</td>
+      <td>-15.440749</td>
+      <td>21456.494256</td>
+      <td>101.0</td>
+      <td>1.445376e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>445.691916</td>
+      <td>311.187421</td>
+      <td>5.206145e-02</td>
+      <td>11.355647</td>
+      <td>0.031035</td>
+      <td>0.133092</td>
+      <td>1.228603</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>std</th>
+      <td>1118.125683</td>
+      <td>7.206981e+06</td>
+      <td>0.860845</td>
+      <td>0.041990</td>
+      <td>3.025328</td>
+      <td>387.739689</td>
+      <td>383.831259</td>
+      <td>8323.951036</td>
+      <td>0.0</td>
+      <td>1.472970e+05</td>
+      <td>...</td>
+      <td>0.00000</td>
+      <td>0.0</td>
+      <td>315.096697</td>
+      <td>118.826598</td>
+      <td>3.129434e+01</td>
+      <td>17.731755</td>
+      <td>1.184695</td>
+      <td>1.254799</td>
+      <td>0.890456</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>min</th>
+      <td>10000.000000</td>
+      <td>1.209000e+03</td>
+      <td>0.943108</td>
+      <td>1.047390</td>
+      <td>0.000030</td>
+      <td>-2210.288330</td>
+      <td>-1965.817627</td>
+      <td>3819.594971</td>
+      <td>101.0</td>
+      <td>1.445077e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>1.611257</td>
+      <td>-20.000000</td>
+      <td>-5.115106e+02</td>
+      <td>-366.784837</td>
+      <td>-4.931283</td>
+      <td>-4.930196</td>
+      <td>0.006992</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>25%</th>
+      <td>10611.000000</td>
+      <td>6.224463e+06</td>
+      <td>2.288013</td>
+      <td>1.195133</td>
+      <td>0.075658</td>
+      <td>-299.670029</td>
+      <td>-226.048615</td>
+      <td>15796.670410</td>
+      <td>101.0</td>
+      <td>1.445262e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>225.681059</td>
+      <td>226.666672</td>
+      <td>-1.043272e+01</td>
+      <td>7.050645</td>
+      <td>-0.668122</td>
+      <td>-0.614807</td>
+      <td>0.590699</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>50%</th>
+      <td>11228.000000</td>
+      <td>1.241831e+07</td>
+      <td>2.762023</td>
+      <td>1.219935</td>
+      <td>0.223775</td>
+      <td>-82.851608</td>
+      <td>-13.305991</td>
+      <td>19832.361328</td>
+      <td>101.0</td>
+      <td>1.445341e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>370.896598</td>
+      <td>296.808502</td>
+      <td>4.356801e-15</td>
+      <td>10.434372</td>
+      <td>0.014626</td>
+      <td>0.142691</td>
+      <td>0.971793</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>75%</th>
+      <td>12785.000000</td>
+      <td>1.872331e+07</td>
+      <td>3.412117</td>
+      <td>1.245360</td>
+      <td>6.197453</td>
+      <td>127.354301</td>
+      <td>200.579781</td>
+      <td>25314.792969</td>
+      <td>101.0</td>
+      <td>1.445521e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>580.271834</td>
+      <td>378.164993</td>
+      <td>1.056010e+01</td>
+      <td>15.502840</td>
+      <td>0.731838</td>
+      <td>0.894450</td>
+      <td>1.615544</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>max</th>
+      <td>12937.000000</td>
+      <td>2.499981e+07</td>
+      <td>5.775583</td>
+      <td>1.394943</td>
+      <td>6.283178</td>
+      <td>2193.235840</td>
+      <td>1934.883911</td>
+      <td>79474.773438</td>
+      <td>101.0</td>
+      <td>1.445647e+09</td>
+      <td>...</td>
+      <td>1.22173</td>
+      <td>0.0</td>
+      <td>2273.305676</td>
+      <td>920.000000</td>
+      <td>4.849908e+02</td>
+      <td>491.442058</td>
+      <td>4.902331</td>
+      <td>4.734571</td>
+      <td>5.641257</td>
+      <td>1.0</td>
+    </tr>
+  </tbody>
+</table>
+<p>8 rows × 31 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hist_opt</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;figsize&#39;</span><span class="p">:(</span><span class="mi">18</span><span class="p">,</span><span class="mi">18</span><span class="p">),</span> <span class="s1">&#39;density&#39;</span><span class="p">:</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span><span class="mf">0.6</span><span class="p">,</span> <span class="s1">&#39;bins&#39;</span><span class="p">:</span><span class="mi">80</span><span class="p">}</span>
+<span class="n">cols</span> <span class="o">=</span> <span class="n">gammas_table</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">protons_table</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">gammas_table</span><span class="p">[</span><span class="n">cols</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;diffuse gammas&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">hist_opt</span><span class="p">);</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">protons_table</span><span class="p">[</span><span class="n">cols</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[:</span><span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">protons_table</span><span class="o">.</span><span class="n">columns</span><span class="p">),</span><span class="nb">len</span><span class="p">(</span><span class="n">gammas_table</span><span class="o">.</span><span class="n">columns</span><span class="p">))],</span>
+                          <span class="n">label</span><span class="o">=</span><span class="s1">&#39;protons&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">hist_opt</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_data_visualization_7_0.png" src="../_images/tutorials_data_visualization_7_0.png" />
+</div>
+</div>
+</section>
+<section id="Correlation-matrices">
+<h3>Correlation matrices<a class="headerlink" href="#Correlation-matrices" title="Permalink to this headline">¶</a></h3>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Gammas</span>
+<span class="n">f</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">gammas_table</span><span class="o">.</span><span class="n">columns</span>
+<span class="n">corr</span> <span class="o">=</span> <span class="n">gammas_table</span><span class="p">[</span><span class="n">features</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">()</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">),</span>
+            <span class="n">cmap</span><span class="o">=</span><span class="n">sns</span><span class="o">.</span><span class="n">diverging_palette</span><span class="p">(</span><span class="mi">220</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">as_cmap</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">square</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_data_visualization_10_0.png" src="../_images/tutorials_data_visualization_10_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Protons</span>
+<span class="n">f</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">protons_table</span><span class="o">.</span><span class="n">columns</span>
+<span class="n">corr</span> <span class="o">=</span> <span class="n">protons_table</span><span class="p">[</span><span class="n">features</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">()</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">),</span>
+            <span class="n">cmap</span><span class="o">=</span><span class="n">sns</span><span class="o">.</span><span class="n">diverging_palette</span><span class="p">(</span><span class="mi">220</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">as_cmap</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">square</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/tutorials_data_visualization_11_0.png" src="../_images/tutorials_data_visualization_11_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../lstchain_api/index.html" class="btn btn-neutral float-right" title="API Docs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright LST collaboration.  Last updated 12 Jan 2022 11:22.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

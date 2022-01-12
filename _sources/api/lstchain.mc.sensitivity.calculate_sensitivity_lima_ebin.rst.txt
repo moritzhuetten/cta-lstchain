@@ -1,0 +1,6 @@
+calculate_sensitivity_lima_ebin
+===============================
+
+.. currentmodule:: lstchain.mc.sensitivity
+
+.. autofunction:: calculate_sensitivity_lima_ebin

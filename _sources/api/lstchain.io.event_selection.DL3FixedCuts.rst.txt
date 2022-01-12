@@ -1,0 +1,35 @@
+DL3FixedCuts
+============
+
+.. currentmodule:: lstchain.io.event_selection
+
+.. autoclass:: DL3FixedCuts
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~DL3FixedCuts.allowed_tels
+      ~DL3FixedCuts.fixed_gh_cut
+      ~DL3FixedCuts.fixed_theta_cut
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~DL3FixedCuts.allowed_tels_filter
+      ~DL3FixedCuts.gh_cut
+      ~DL3FixedCuts.theta_cut
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: allowed_tels
+   .. autoattribute:: fixed_gh_cut
+   .. autoattribute:: fixed_theta_cut
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: allowed_tels_filter
+   .. automethod:: gh_cut
+   .. automethod:: theta_cut

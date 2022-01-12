@@ -1,0 +1,6 @@
+analyze_wobble
+==============
+
+.. currentmodule:: lstchain.analysis.post_dl2
+
+.. autofunction:: analyze_wobble

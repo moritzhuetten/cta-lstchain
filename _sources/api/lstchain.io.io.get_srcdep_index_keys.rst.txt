@@ -1,0 +1,6 @@
+get_srcdep_index_keys
+=====================
+
+.. currentmodule:: lstchain.io.io
+
+.. autofunction:: get_srcdep_index_keys

@@ -1,0 +1,6 @@
+read_file
+=========
+
+.. currentmodule:: lstchain.visualization.plot_calib
+
+.. autofunction:: read_file

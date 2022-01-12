@@ -1,0 +1,6 @@
+add_icrs_position_params
+========================
+
+.. currentmodule:: lstchain.irf
+
+.. autofunction:: add_icrs_position_params

@@ -1,0 +1,6 @@
+plot_all
+========
+
+.. currentmodule:: lstchain.visualization.plot_calib
+
+.. autofunction:: plot_all

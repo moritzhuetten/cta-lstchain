@@ -1,0 +1,6 @@
+add_icrs_position_params
+========================
+
+.. currentmodule:: lstchain.irf.hdu_table
+
+.. autofunction:: add_icrs_position_params

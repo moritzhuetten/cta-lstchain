@@ -1,0 +1,6 @@
+get_pointing_params
+===================
+
+.. currentmodule:: lstchain.irf
+
+.. autofunction:: get_pointing_params

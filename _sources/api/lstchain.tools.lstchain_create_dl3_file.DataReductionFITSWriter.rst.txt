@@ -1,0 +1,55 @@
+DataReductionFITSWriter
+=======================
+
+.. currentmodule:: lstchain.tools.lstchain_create_dl3_file
+
+.. autoclass:: DataReductionFITSWriter
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~DataReductionFITSWriter.aliases
+      ~DataReductionFITSWriter.classes
+      ~DataReductionFITSWriter.description
+      ~DataReductionFITSWriter.example
+      ~DataReductionFITSWriter.flags
+      ~DataReductionFITSWriter.input_dl2
+      ~DataReductionFITSWriter.input_irf
+      ~DataReductionFITSWriter.name
+      ~DataReductionFITSWriter.output_dl3_path
+      ~DataReductionFITSWriter.overwrite
+      ~DataReductionFITSWriter.source_dec
+      ~DataReductionFITSWriter.source_name
+      ~DataReductionFITSWriter.source_ra
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~DataReductionFITSWriter.finish
+      ~DataReductionFITSWriter.setup
+      ~DataReductionFITSWriter.start
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: aliases
+   .. autoattribute:: classes
+   .. autoattribute:: description
+   .. autoattribute:: example
+   .. autoattribute:: flags
+   .. autoattribute:: input_dl2
+   .. autoattribute:: input_irf
+   .. autoattribute:: name
+   .. autoattribute:: output_dl3_path
+   .. autoattribute:: overwrite
+   .. autoattribute:: source_dec
+   .. autoattribute:: source_name
+   .. autoattribute:: source_ra
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: finish
+   .. automethod:: setup
+   .. automethod:: start
